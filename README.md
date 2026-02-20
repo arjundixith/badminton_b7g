@@ -109,6 +109,34 @@ Notes:
 2. Check `/viewer`, `/referee_b7g/viewer`, and `/referee_b7g/referee`.
 3. Confirm backend health at `https://<your-render-service>.onrender.com/health`.
 
+## Single Deployment On Vercel (Free)
+
+You can deploy frontend + backend in one Vercel project:
+
+- Frontend static build from `frontend/`
+- FastAPI backend from `/api/index.py`
+
+Steps:
+
+1. In Vercel, import this repo as one project.
+2. Keep build settings from `/Users/arjundixithts/Downloads/badminton-app/vercel.json`.
+3. Add environment variables in Vercel project:
+   - `DATABASE_URL=postgresql://...` (Neon free DB URL)
+   - `AUTO_SEED_ON_EMPTY=true`
+   - `CORS_ORIGINS=https://<your-vercel-domain>`
+   - `VITE_API_URL=/api`
+4. Deploy.
+
+URLs after deploy:
+
+- Frontend: `https://<your-vercel-domain>/`
+- Backend health: `https://<your-vercel-domain>/api/health`
+
+Notes:
+
+- SQLite is not durable on Vercel serverless, so use Postgres (`DATABASE_URL`).
+- On first start with empty DB, app auto-seeds a fresh tournament (same teams/players, all ties pending).
+
 ## Quality Commands
 
 ```bash

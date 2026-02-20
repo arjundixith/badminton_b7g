@@ -51,7 +51,10 @@ def seed_if_empty() -> None:
     if has_teams:
         return
 
-    from seed import seed
+    try:
+        from seed import seed
+    except ModuleNotFoundError:
+        from backend.seed import seed
 
     seed(demo_progress=False)
 
