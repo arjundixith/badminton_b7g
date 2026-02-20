@@ -1,7 +1,8 @@
-"""Compatibility router kept for older imports.
+"""Legacy compatibility endpoint.
 
-This module intentionally mirrors `/matches` list behavior so existing references
-continue to work, but the primary implementation lives in `routes/matches.py`.
+Older frontend versions expected `GET /matches` via this module. We keep it to
+avoid import errors if stale references exist, while the primary route lives in
+`routes/matches.py`.
 """
 
 from fastapi import APIRouter, Depends

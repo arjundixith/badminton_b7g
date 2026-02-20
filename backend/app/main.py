@@ -4,12 +4,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine
-from .routes import matches, players, referee, schedule, teams, ties
+from .routes import finals, matches, players, referee, schedule, teams, ties, viewer
 
 app = FastAPI(
     title="Badminton Tournament API",
-    version="1.0.0",
-    description="APIs for team management, tie scheduling, score updates, and referee assignment.",
+    version="2.0.0",
+    description=(
+        "Round-robin badminton tournament APIs with referee-scored matches "
+        "and viewer dashboards."
+    ),
 )
 
 cors_origins = os.getenv(
@@ -40,3 +43,5 @@ app.include_router(ties.router, prefix="/ties")
 app.include_router(matches.router, prefix="/matches")
 app.include_router(referee.router, prefix="/referee")
 app.include_router(schedule.router, prefix="/schedule")
+app.include_router(viewer.router, prefix="/viewer")
+app.include_router(finals.router, prefix="/finals")

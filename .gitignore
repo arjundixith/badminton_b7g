@@ -17,3 +17,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+
+# Local virtual environments
+.venv/
+/backend/.venv/

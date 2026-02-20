@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { assignReferee, getMatches, updateLineup, updateMatchStatus, updateScore } from "../api";
+import {
+    assignFinalGameReferee,
+    assignReferee,
+    getMatches,
+    getViewerDashboard,
+    updateFinalGameScore,
+    updateLineup,
+    updateMatchStatus,
+    updateScore,
+} from "../api";
 
 const STATUS_FILTERS = ["pending", "live", "completed"];
 
@@ -126,12 +135,51 @@ function formatMatchLabel(match) {
     return `Tie ${match.tie_no ?? "-"} • #${match.match_no} • ${match.team1} vs ${match.team2}`;
 }
 
+function formatTime12Hour(value) {
+    if (!value) {
+        return "-";
+    }
+
+    const text = String(value).trim();
+    if (!text.includes(":")) {
+        return text;
+    }
+
+    const [hourText, minuteText] = text.split(":");
+    const hour = Number(hourText);
+    const minute = Number(minuteText);
+    if (Number.isNaN(hour) || Number.isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+        return text;
+    }
+
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
+function getTieToneClass(tieNo) {
+    const value = Number(tieNo);
+    if (!Number.isFinite(value) || value <= 0) {
+        return "tie-tone-1";
+    }
+    return `tie-tone-${((Math.trunc(value) - 1) % 6) + 1}`;
+}
+
 export default function Referee() {
     const [matches, setMatches] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
     const [lastCompletedStatus, setLastCompletedStatus] = useState("");
+    const [finalMatch, setFinalMatch] = useState(null);
+    const [medals, setMedals] = useState({
+        finalist1: null,
+        finalist2: null,
+        gold_team: null,
+        silver_team: null,
+        bronze_team: null,
+    });
+    const [finalGameDrafts, setFinalGameDrafts] = useState({});
 
     const [statusFilter, setStatusFilter] = useState("pending");
     const [selectedCourt, setSelectedCourt] = useState(null);
@@ -142,23 +190,59 @@ export default function Referee() {
     const [score2, setScore2] = useState(0);
     const [team1LineupInput, setTeam1LineupInput] = useState("");
     const [team2LineupInput, setTeam2LineupInput] = useState("");
+    const [pendingLineups, setPendingLineups] = useState({});
+    const [pendingLineupReady, setPendingLineupReady] = useState({});
+    const [decrementConfirm, setDecrementConfirm] = useState(null);
+    const [tieExpandedByContext, setTieExpandedByContext] = useState({});
     const [submitting, setSubmitting] = useState(false);
     const [scoreDraftDirty, setScoreDraftDirty] = useState(false);
     const [lineupDraftDirty, setLineupDraftDirty] = useState(false);
 
     const hydratedActiveMatchIdRef = useRef(null);
+    const autoFilterInitializedRef = useRef(false);
+
+    function applyDashboardSnapshot(payload) {
+        setFinalMatch(payload?.final_match ?? null);
+        setMedals(
+            payload?.medals ?? {
+                finalist1: null,
+                finalist2: null,
+                gold_team: null,
+                silver_team: null,
+                bronze_team: null,
+            },
+        );
+        setFinalGameDrafts(() => {
+            const drafts = {};
+            const games = payload?.final_match?.matches ?? [];
+            for (const game of games) {
+                drafts[game.id] = {
+                    referee: game.referee_name || "",
+                    score1: game.team1_score ?? 0,
+                    score2: game.team2_score ?? 0,
+                };
+            }
+            return drafts;
+        });
+    }
 
     useEffect(() => {
         let mounted = true;
 
         async function loadMatches() {
             try {
-                const payload = await getMatches();
+                const [matchesResult, dashboardResult] = await Promise.allSettled([getMatches(), getViewerDashboard()]);
+                if (matchesResult.status !== "fulfilled") {
+                    throw matchesResult.reason;
+                }
                 if (!mounted) {
                     return;
                 }
 
-                setMatches(payload);
+                setMatches(matchesResult.value);
+                if (dashboardResult.status === "fulfilled") {
+                    applyDashboardSnapshot(dashboardResult.value);
+                }
             } catch (err) {
                 if (mounted) {
                     setError(err.message || "Failed to load matches");
@@ -182,9 +266,14 @@ export default function Referee() {
 
         const intervalId = window.setInterval(async () => {
             try {
-                const payload = await getMatches();
+                const [matchesResult, dashboardResult] = await Promise.allSettled([getMatches(), getViewerDashboard()]);
                 if (mounted) {
-                    setMatches(payload);
+                    if (matchesResult.status === "fulfilled") {
+                        setMatches(matchesResult.value);
+                    }
+                    if (dashboardResult.status === "fulfilled") {
+                        applyDashboardSnapshot(dashboardResult.value);
+                    }
                 }
             } catch {
                 // Silent refresh failure: existing state is still usable.
@@ -225,15 +314,80 @@ export default function Referee() {
     const stageStatusMatches = useMemo(() => {
         return courtStageMatches.filter((match) => match.status === statusFilter);
     }, [courtStageMatches, statusFilter]);
+    const statusCountsOverall = useMemo(() => {
+        const counts = {
+            pending: 0,
+            live: 0,
+            completed: 0,
+        };
+
+        for (const match of orderedMatches) {
+            if (match.status in counts) {
+                counts[match.status] += 1;
+            }
+        }
+
+        return counts;
+    }, [orderedMatches]);
 
     const queueMatches = stageStatusMatches;
+    const tieGroups = useMemo(() => {
+        const byTie = new Map();
+        for (const match of queueMatches) {
+            const key = match.tie_no ?? -1;
+            if (!byTie.has(key)) {
+                byTie.set(key, {
+                    tieNo: key,
+                    matches: [],
+                });
+            }
+            byTie.get(key).matches.push(match);
+        }
+
+        return [...byTie.values()]
+            .map((group) => ({
+                ...group,
+                matches: [...group.matches].sort((a, b) => a.match_no - b.match_no),
+            }))
+            .sort((a, b) => a.tieNo - b.tieNo);
+    }, [queueMatches]);
 
     const currentLiveOnCourt = useMemo(() => {
         return courtStageMatches.find((match) => match.status === "live") || null;
     }, [courtStageMatches]);
+    const liveTieNoOnCourt = currentLiveOnCourt?.tie_no ?? null;
 
     const recommendedNextMatch = useMemo(() => {
         return courtStageMatches.find((match) => match.status !== "completed") || null;
+    }, [courtStageMatches]);
+    const lastCompletedOnCourt = useMemo(() => {
+        for (let index = courtStageMatches.length - 1; index >= 0; index -= 1) {
+            if (courtStageMatches[index].status === "completed") {
+                return courtStageMatches[index];
+            }
+        }
+        return null;
+    }, [courtStageMatches]);
+    const recommendedStartsNewTie = useMemo(() => {
+        if (!recommendedNextMatch || !lastCompletedOnCourt) {
+            return false;
+        }
+        return recommendedNextMatch.tie_no !== lastCompletedOnCourt.tie_no;
+    }, [recommendedNextMatch, lastCompletedOnCourt]);
+    const tieProgressByNo = useMemo(() => {
+        const byTie = new Map();
+        for (const match of courtStageMatches) {
+            const key = match.tie_no ?? -1;
+            if (!byTie.has(key)) {
+                byTie.set(key, { total: 0, completed: 0 });
+            }
+            const row = byTie.get(key);
+            row.total += 1;
+            if (match.status === "completed") {
+                row.completed += 1;
+            }
+        }
+        return byTie;
     }, [courtStageMatches]);
 
     const hasPendingOnCourt = useMemo(
@@ -248,6 +402,138 @@ export default function Referee() {
         () => courtStageMatches.some((match) => match.status === "completed"),
         [courtStageMatches],
     );
+
+    useEffect(() => {
+        if (selectedCourt == null) {
+            return;
+        }
+
+        // Set default tab once on initial load: prefer live queue when a live match exists.
+        if (autoFilterInitializedRef.current) {
+            return;
+        }
+
+        autoFilterInitializedRef.current = true;
+        if (statusFilter === "completed") {
+            return;
+        }
+        setStatusFilter(hasLiveOnCourt ? "live" : "pending");
+    }, [selectedCourt, hasLiveOnCourt, statusFilter]);
+
+    useEffect(() => {
+        setPendingLineupReady((prev) => {
+            const next = {};
+            for (const match of matches) {
+                if (match.status === "pending" && prev[match.id]) {
+                    next[match.id] = true;
+                }
+            }
+            return next;
+        });
+    }, [matches]);
+
+    const tieExpansionContextKey = `${selectedCourt ?? "none"}:${statusFilter}`;
+    const preferredExpandedTieNo = useMemo(() => {
+        if (tieGroups.length === 0) {
+            return null;
+        }
+
+        const visibleTieNos = new Set(tieGroups.map((group) => String(group.tieNo ?? -1)));
+        const hasVisibleTie = (tieNo) => tieNo != null && visibleTieNos.has(String(tieNo));
+        const firstIncompleteTie = tieGroups.find((group) => {
+            const progress = tieProgressByNo.get(group.tieNo ?? -1);
+            const completed = progress?.completed ?? 0;
+            const total = progress?.total ?? group.matches.length;
+            return completed < total;
+        });
+
+        if (statusFilter === "live") {
+            if (hasVisibleTie(liveTieNoOnCourt)) {
+                return liveTieNoOnCourt;
+            }
+            return tieGroups[0].tieNo;
+        }
+
+        if (statusFilter === "pending") {
+            if (hasVisibleTie(liveTieNoOnCourt)) {
+                return liveTieNoOnCourt;
+            }
+            if (firstIncompleteTie) {
+                return firstIncompleteTie.tieNo;
+            }
+            return tieGroups[0].tieNo;
+        }
+
+        if (firstIncompleteTie) {
+            return firstIncompleteTie.tieNo;
+        }
+        if (hasVisibleTie(liveTieNoOnCourt)) {
+            return liveTieNoOnCourt;
+        }
+        return tieGroups[0].tieNo;
+    }, [statusFilter, tieGroups, tieProgressByNo, liveTieNoOnCourt]);
+
+    useEffect(() => {
+        if (selectedCourt == null || tieGroups.length === 0) {
+            return;
+        }
+
+        const preferredKey = preferredExpandedTieNo == null ? null : String(preferredExpandedTieNo);
+        if (preferredKey == null) {
+            return;
+        }
+
+        setTieExpandedByContext((prev) => {
+            const visibleTieKeys = new Set(tieGroups.map((group) => String(group.tieNo ?? -1)));
+            const hasStoredContext = Object.prototype.hasOwnProperty.call(prev, tieExpansionContextKey);
+            const existingKey = hasStoredContext ? prev[tieExpansionContextKey] : undefined;
+
+            if (!hasStoredContext) {
+                return { ...prev, [tieExpansionContextKey]: preferredKey };
+            }
+
+            // User explicitly collapsed this context. Keep it collapsed until user expands.
+            if (existingKey == null) {
+                return prev;
+            }
+
+            const existingVisible = visibleTieKeys.has(existingKey);
+
+            if (!existingVisible) {
+                if (existingKey === preferredKey) {
+                    return prev;
+                }
+                return { ...prev, [tieExpansionContextKey]: preferredKey };
+            }
+
+            const currentTieNo = Number(existingKey);
+            const currentProgress = tieProgressByNo.get(Number.isFinite(currentTieNo) ? currentTieNo : -1);
+            const currentCompleted = currentProgress?.completed ?? 0;
+            const currentTotal = currentProgress?.total ?? 0;
+            const currentTieCompleted = currentTotal > 0 && currentCompleted >= currentTotal;
+
+            const shouldForceLiveTie =
+                (statusFilter === "live" || statusFilter === "pending") &&
+                liveTieNoOnCourt != null &&
+                preferredKey !== existingKey;
+            const shouldForceCompletedAdvance =
+                statusFilter === "completed" && currentTieCompleted && preferredKey !== existingKey;
+
+            if (shouldForceLiveTie || shouldForceCompletedAdvance) {
+                return { ...prev, [tieExpansionContextKey]: preferredKey };
+            }
+
+            return prev;
+        });
+    }, [
+        selectedCourt,
+        tieGroups,
+        tieExpansionContextKey,
+        preferredExpandedTieNo,
+        tieProgressByNo,
+        statusFilter,
+        liveTieNoOnCourt,
+    ]);
 
     useEffect(() => {
         if (activeMatchId == null) {
@@ -323,6 +609,14 @@ export default function Referee() {
         return refereeDrafts[match.id] ?? match.referee_name ?? courtPreferredRefereeName ?? "";
     }
 
+    function getPendingLineupDraft(match, side) {
+        const saved = pendingLineups[match.id];
+        if (saved) {
+            return side === 1 ? saved.team1 : saved.team2;
+        }
+        return side === 1 ? match.team1_lineup || "" : match.team2_lineup || "";
+    }
+
     const requiresStrictLineup = useMemo(() => requiresRefereeLineupEntry(activeMatch), [activeMatch]);
     const normalizedTeam1Lineup = useMemo(() => normalizeLineup(team1LineupInput), [team1LineupInput]);
     const normalizedTeam2Lineup = useMemo(() => normalizeLineup(team2LineupInput), [team2LineupInput]);
@@ -345,10 +639,94 @@ export default function Referee() {
         return `${now} • ${completed}`;
     }, [error, message, lastCompletedStatus]);
 
+    async function refreshFinalDashboard() {
+        try {
+            const payload = await getViewerDashboard();
+            applyDashboardSnapshot(payload);
+        } catch {
+            // Silent refresh failure: existing state is still usable.
+        }
+    }
+
+    function getFinalGameDraft(game) {
+        const saved = finalGameDrafts[game.id];
+        if (saved) {
+            return saved;
+        }
+        return {
+            referee: game.referee_name || "",
+            score1: game.team1_score ?? 0,
+            score2: game.team2_score ?? 0,
+        };
+    }
+
+    async function handleAssignFinalGameReferee(game) {
+        const draft = getFinalGameDraft(game);
+        const name = String(draft.referee || "").trim();
+        if (!name) {
+            setError(`Enter referee name before starting final game ${game.match_no}.`);
+            setMessage("");
+            return;
+        }
+
+        setSubmitting(true);
+        setError("");
+        setMessage("");
+
+        try {
+            const payload = await assignFinalGameReferee(game.id, name);
+            setFinalMatch(payload);
+            setMessage(`Final game ${game.match_no} referee assigned: ${name}`);
+            await refreshFinalDashboard();
+        } catch (err) {
+            setError(err.message || "Failed to assign final game referee");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    async function handleSaveFinalGameScore(game) {
+        const draft = getFinalGameDraft(game);
+        const nextScore1 = Number(draft.score1);
+        const nextScore2 = Number(draft.score2);
+        if (!Number.isFinite(nextScore1) || !Number.isFinite(nextScore2)) {
+            setError(`Enter valid numeric scores for final game ${game.match_no}.`);
+            setMessage("");
+            return;
+        }
+
+        const boundedScore1 = Math.max(0, Math.min(30, Math.trunc(nextScore1)));
+        const boundedScore2 = Math.max(0, Math.min(30, Math.trunc(nextScore2)));
+
+        setSubmitting(true);
+        setError("");
+        setMessage("");
+
+        try {
+            const payload = await updateFinalGameScore(game.id, boundedScore1, boundedScore2);
+            setFinalMatch(payload);
+            if (payload.status === "completed") {
+                setMessage(`Final tie completed: ${payload.team1} ${payload.team1_score} - ${payload.team2_score} ${payload.team2}.`);
+            } else {
+                setMessage(`Final game ${game.match_no} score updated.`);
+            }
+            await refreshFinalDashboard();
+        } catch (err) {
+            setError(err.message || "Failed to update final game score");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
     async function handleStartMatch(match) {
         const refereeName = getRefereeDraft(match).trim();
         if (!refereeName) {
             setError("Enter referee name before starting match.");
+            setMessage("");
+            return;
+        }
+        if (!pendingLineupReady[match.id]) {
+            setError("Update player names for both teams before starting match.");
             setMessage("");
             return;
         }
@@ -427,6 +805,11 @@ export default function Referee() {
 
             upsertMatch(payload.match);
             setRefereeDrafts((prev) => ({ ...prev, [latestMatch.id]: payload.referee.name }));
+            setPendingLineupReady((prev) => {
+                const next = { ...prev };
+                delete next[latestMatch.id];
+                return next;
+            });
             setActiveMatchId(latestMatch.id);
             setScoreDraftDirty(false);
             setLineupDraftDirty(false);
@@ -457,6 +840,11 @@ export default function Referee() {
             if (activeMatchId === match.id) {
                 setActiveMatchId(null);
             }
+            setPendingLineupReady((prev) => {
+                const next = { ...prev };
+                delete next[match.id];
+                return next;
+            });
             setScoreDraftDirty(false);
             setLineupDraftDirty(false);
             setStatusFilter("pending");
@@ -486,6 +874,40 @@ export default function Referee() {
             setMessage("Lineup updated.");
         } catch (err) {
             setError(err.message || "Failed to update lineup");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    async function handlePendingLineupUpdate(match) {
+        const team1 = normalizeLineup(getPendingLineupDraft(match, 1));
+        const team2 = normalizeLineup(getPendingLineupDraft(match, 2));
+
+        if (!team1 || !team2) {
+            setError("Enter player names for both teams before updating.");
+            setMessage("");
+            return;
+        }
+
+        setSubmitting(true);
+        setError("");
+        setMessage("");
+
+        try {
+            const payload = await updateLineup(match.id, team1, team2);
+            upsertMatch(payload);
+            setPendingLineups((prev) => ({
+                ...prev,
+                [match.id]: {
+                    team1: payload.team1_lineup,
+                    team2: payload.team2_lineup,
+                },
+            }));
+            setPendingLineupReady((prev) => ({ ...prev, [match.id]: true }));
+            setMessage("Players updated. You can start match.");
+        } catch (err) {
+            setError(err.message || "Failed to update players");
+            setPendingLineupReady((prev) => ({ ...prev, [match.id]: false }));
         } finally {
             setSubmitting(false);
         }
@@ -539,11 +961,11 @@ export default function Referee() {
                     `Last completed: ${formatMatchLabel(payload)} • ${payload.team1_score}-${payload.team2_score}`,
                 );
                 setActiveMatchId(null);
-                setStatusFilter("pending");
+                setStatusFilter("completed");
                 setMessage(
                     autoComplete
                         ? "Match completed automatically at winning score."
-                        : "Match completed. Switched to pending list for next match.",
+                        : "Match completed. Switched to completed list.",
                 );
             } else {
                 setStatusFilter("live");
@@ -560,7 +982,7 @@ export default function Referee() {
         await saveScore(score1, score2);
     }
 
-    function adjust(team, delta) {
+    function applyScoreDelta(team, delta) {
         if (submitting) {
             return;
         }
@@ -582,12 +1004,77 @@ export default function Referee() {
 
         setScore1(nextScore1);
         setScore2(nextScore2);
-        setScoreDraftDirty(true);
-
-        if (delta > 0 && isWinningScore(nextScore1, nextScore2)) {
-            void saveScore(nextScore1, nextScore2, { autoComplete: true });
-        }
+        setScoreDraftDirty(false);
+        void saveScore(nextScore1, nextScore2, { autoComplete: isWinningScore(nextScore1, nextScore2) });
     }
+
+    function adjust(team, delta) {
+        if (delta < 0) {
+            const from = team === 1 ? score1 : score2;
+            if (from > 0) {
+                setDecrementConfirm({
+                    team,
+                    delta,
+                    from,
+                    to: Math.max(0, from + delta),
+                });
+                return;
+            }
+        }
+
+        applyScoreDelta(team, delta);
+    }
+
+    function closeDecrementModal() {
+        setDecrementConfirm(null);
+    }
+
+    function confirmDecrement() {
+        if (!decrementConfirm) {
+            return;
+        }
+        const { team, delta } = decrementConfirm;
+        setDecrementConfirm(null);
+        applyScoreDelta(team, delta);
+    }
+
+    function expandTieForCurrentView(tieNo) {
+        const tieKey = String(tieNo ?? -1);
+        setTieExpandedByContext((prev) => {
+            const hasStoredContext = Object.prototype.hasOwnProperty.call(prev, tieExpansionContextKey);
+            const currentExpandedKey = hasStoredContext
+                ? prev[tieExpansionContextKey]
+                : preferredExpandedTieNo == null
+                  ? null
+                  : String(preferredExpandedTieNo);
+
+            if (currentExpandedKey === tieKey) {
+                return { ...prev, [tieExpansionContextKey]: null };
+            }
+            return { ...prev, [tieExpansionContextKey]: tieKey };
+        });
+    }
+
+    const decrementTeamName =
+        decrementConfirm?.team === 1
+            ? activeMatch?.team1 || "Team 1"
+            : decrementConfirm?.team === 2
+              ? activeMatch?.team2 || "Team 2"
+              : "Team";
+    const hasStoredExpandedTie = Object.prototype.hasOwnProperty.call(tieExpandedByContext, tieExpansionContextKey);
+    const expandedTieKey = hasStoredExpandedTie
+        ? tieExpandedByContext[tieExpansionContextKey]
+        : preferredExpandedTieNo == null
+          ? null
+          : String(preferredExpandedTieNo);
+    const finalGames = useMemo(
+        () => (finalMatch?.matches ? [...finalMatch.matches].sort((a, b) => a.match_no - b.match_no) : []),
+        [finalMatch],
+    );
+    const finalGamesCompletedCount = useMemo(
+        () => finalGames.filter((game) => game.status === "completed").length,
+        [finalGames],
+    );
 
     if (loading) {
         return <section className="panel">Loading referee console...</section>;
@@ -602,7 +1089,174 @@ export default function Referee() {
                 </div>
                 <p className={`ref-status-line ${error ? "is-error" : "is-info"}`}>{statusSummary}</p>
 
-                {recommendedNextMatch && <p className="muted-note">Recommended next in order</p>}
+                <div className="podium-strip">
+                    <article className="podium-card">
+                        <p>Gold</p>
+                        <h5>{medals.gold_team ?? "TBD"}</h5>
+                    </article>
+                    <article className="podium-card">
+                        <p>Silver</p>
+                        <h5>{medals.silver_team ?? "TBD"}</h5>
+                    </article>
+                    <article className="podium-card">
+                        <p>Bronze</p>
+                        <h5>{medals.bronze_team ?? "TBD"}</h5>
+                    </article>
+                </div>
+
+                {(medals.finalist1 || medals.finalist2 || finalMatch) && (
+                    <div className="lineup-box stack-sm">
+                        <p className="match-meta">Final Tie</p>
+                        <h5>
+                            Finalist 1: {medals.finalist1 ?? finalMatch?.team1 ?? "TBD"}{" "}
+                            <span className="muted-note">vs</span> Finalist 2: {medals.finalist2 ?? finalMatch?.team2 ?? "TBD"}
+                        </h5>
+                        <p className="match-meta">
+                            Status: {finalMatch?.status ?? (medals.finalist1 && medals.finalist2 ? "pending" : "waiting")}
+                        </p>
+
+                        {finalMatch ? (
+                            <>
+                                <p className="lineup">
+                                    Score: {finalMatch.team1_score} <span>vs</span> {finalMatch.team2_score}
+                                </p>
+                                <p className="match-meta">{finalMatch.winner_team ? `Winner: ${finalMatch.winner_team}` : "Winner: pending"}</p>
+                                <p className="match-meta">
+                                    Final games completed: {finalGamesCompletedCount}/{finalGames.length || 12}
+                                </p>
+
+                                <div className="stack-sm">
+                                    {finalGames.map((game) => {
+                                        const draft = getFinalGameDraft(game);
+                                        return (
+                                            <div key={game.id} className={`queue-item ${game.status === "completed" ? "tie-tone-2" : "tie-tone-1"}`}>
+                                                <div className="stack-sm">
+                                                    <div className="panel-head">
+                                                        <div>
+                                                            <p className="match-meta">
+                                                                Final Game #{game.match_no} • {game.discipline}
+                                                            </p>
+                                                            <h5>
+                                                                {finalMatch.team1} vs {finalMatch.team2}
+                                                            </h5>
+                                                        </div>
+                                                        <StatusPill status={game.status} />
+                                                    </div>
+
+                                                    <p className="lineup">
+                                                        {game.team1_lineup} <span>vs</span> {game.team2_lineup}
+                                                    </p>
+                                                    <p className="match-meta">
+                                                        Referee: {game.referee_name || "Not assigned"} • Score: {game.team1_score} - {game.team2_score}
+                                                    </p>
+
+                                                    {finalMatch.status !== "completed" && game.status !== "completed" && (
+                                                        <div className="stack-sm">
+                                                            <label htmlFor={`final-referee-${game.id}`}>Game referee</label>
+                                                            <div className="input-row">
+                                                                <input
+                                                                    id={`final-referee-${game.id}`}
+                                                                    value={draft.referee}
+                                                                    onChange={(event) =>
+                                                                        setFinalGameDrafts((prev) => ({
+                                                                            ...prev,
+                                                                            [game.id]: {
+                                                                                referee: event.target.value,
+                                                                                score1: prev[game.id]?.score1 ?? game.team1_score ?? 0,
+                                                                                score2: prev[game.id]?.score2 ?? game.team2_score ?? 0,
+                                                                            },
+                                                                        }))
+                                                                    }
+                                                                    placeholder="Enter referee name"
+                                                                />
+                                                                <button
+                                                                    className="btn btn-outline"
+                                                                    disabled={submitting}
+                                                                    onClick={() => handleAssignFinalGameReferee(game)}
+                                                                >
+                                                                    Assign
+                                                                </button>
+                                                            </div>
+
+                                                            <div className="pending-lineup-grid">
+                                                                <div className="stack-sm">
+                                                                    <label htmlFor={`final-score-team1-${game.id}`}>{finalMatch.team1} score</label>
+                                                                    <input
+                                                                        id={`final-score-team1-${game.id}`}
+                                                                        type="number"
+                                                                        min="0"
+                                                                        max="30"
+                                                                        value={draft.score1}
+                                                                        onChange={(event) =>
+                                                                            setFinalGameDrafts((prev) => ({
+                                                                                ...prev,
+                                                                                [game.id]: {
+                                                                                    referee: prev[game.id]?.referee ?? game.referee_name ?? "",
+                                                                                    score1: event.target.value,
+                                                                                    score2: prev[game.id]?.score2 ?? game.team2_score ?? 0,
+                                                                                },
+                                                                            }))
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                                <div className="stack-sm">
+                                                                    <label htmlFor={`final-score-team2-${game.id}`}>{finalMatch.team2} score</label>
+                                                                    <input
+                                                                        id={`final-score-team2-${game.id}`}
+                                                                        type="number"
+                                                                        min="0"
+                                                                        max="30"
+                                                                        value={draft.score2}
+                                                                        onChange={(event) =>
+                                                                            setFinalGameDrafts((prev) => ({
+                                                                                ...prev,
+                                                                                [game.id]: {
+                                                                                    referee: prev[game.id]?.referee ?? game.referee_name ?? "",
+                                                                                    score1: prev[game.id]?.score1 ?? game.team1_score ?? 0,
+                                                                                    score2: event.target.value,
+                                                                                },
+                                                                            }))
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                className="btn btn-primary"
+                                                                disabled={submitting || !game.referee_name}
+                                                                onClick={() => handleSaveFinalGameScore(game)}
+                                                            >
+                                                                Save Game Score
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        ) : (
+                            <p className="muted-note">Final tie will be created automatically once all round-robin ties are completed.</p>
+                        )}
+                    </div>
+                )}
+
+                {recommendedNextMatch && (
+                    <div className={`recommended-banner ${getTieToneClass(recommendedNextMatch.tie_no)} ${recommendedStartsNewTie ? "is-new-tie" : ""}`}>
+                        <p className="match-meta">Recommended next in order</p>
+                        <p>
+                            <strong>
+                                Tie {recommendedNextMatch.tie_no} • #{recommendedNextMatch.match_no}
+                            </strong>{" "}
+                            • {recommendedNextMatch.team1} vs {recommendedNextMatch.team2}
+                        </p>
+                        {recommendedStartsNewTie && (
+                            <p className="match-meta">
+                                New tie starts now. Previous completed tie on this court: Tie {lastCompletedOnCourt?.tie_no}.
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 <div className="filters block-gap">
                     {STATUS_FILTERS.map((item) => (
@@ -611,7 +1265,7 @@ export default function Referee() {
                             className={`chip ${statusFilter === item ? "active" : ""}`}
                             onClick={() => setStatusFilter(item)}
                         >
-                            {item}
+                            {item} ({statusCountsOverall[item] ?? 0})
                         </button>
                     ))}
                 </div>
@@ -661,176 +1315,275 @@ export default function Referee() {
                 )}
 
                 <div className="queue stack-sm">
-                    {queueMatches.map((match, index) => {
-                        const isActive = activeMatchId === match.id;
-                        const needsInlineLineup = isActive && match.status === "live";
-                        const needsInlineScore = isActive && match.status === "live";
+                    {tieGroups.map((group, groupIndex) => {
+                        const progress = tieProgressByNo.get(group.tieNo ?? -1);
+                        const completed = progress?.completed ?? 0;
+                        const total = progress?.total ?? group.matches.length;
+                        const tieKey = String(group.tieNo ?? -1);
+                        const isExpanded = expandedTieKey === tieKey;
+                        const tieRepresentativeMatch = group.matches[0] || null;
+                        const tieTeamsLabel = tieRepresentativeMatch
+                            ? `${tieRepresentativeMatch.team1} vs ${tieRepresentativeMatch.team2}`
+                            : "Teams TBD";
 
                         return (
-                            <div
-                                key={match.id}
-                                className={`queue-item ${isActive ? "active" : ""}`}
-                                style={{ animationDelay: `${Math.min(index * 40, 300)}ms` }}
-                            >
-                                <div className="stack-sm">
-                                    <div className="panel-head">
-                                        <div>
-                                            <p className="match-meta">
-                                                Tie {match.tie_no ?? "-"} • #{match.match_no} • Day {match.day} • Court{" "}
-                                                {match.court}
-                                            </p>
-                                            {recommendedNextMatch?.id === match.id && (
-                                                <p className="match-meta">Recommended</p>
-                                            )}
-                                            <h5>
-                                                {match.team1} vs {match.team2}
-                                            </h5>
-                                            <p className="match-meta">
-                                                {match.session} • {match.time}
-                                            </p>
-                                        </div>
-                                        <StatusPill status={match.status} />
-                                    </div>
+                            <section key={`tie-${statusFilter}-${tieKey}`} className={`tie-accordion ${getTieToneClass(group.tieNo)}`}>
+                                <button
+                                    className={`tie-accordion-head ${isExpanded ? "expanded" : ""}`}
+                                    onClick={() => expandTieForCurrentView(group.tieNo)}
+                                >
+                                    <span className="tie-accordion-title">
+                                        Tie {group.tieNo} • {tieTeamsLabel}
+                                    </span>
+                                    <span className="tie-accordion-meta">
+                                        {completed}/{total} completed
+                                    </span>
+                                    <span className="tie-accordion-arrow">{isExpanded ? "−" : "+"}</span>
+                                </button>
 
-                                    <p className="lineup">
-                                        {match.team1_lineup} <span>vs</span> {match.team2_lineup}
-                                    </p>
+                                {isExpanded && (
+                                    <div className="tie-accordion-body stack-sm">
+                                        {group.matches.map((match, index) => {
+                                            const isActive = activeMatchId === match.id;
+                                            const needsInlineLineup = isActive && match.status === "live";
+                                            const needsInlineScore = isActive && match.status === "live";
+                                            const isRecommended = recommendedNextMatch?.id === match.id;
+                                            const showLineupPreview = match.status === "live" || isActive;
 
-                                    {match.status === "pending" && (
-                                        <div className="stack-sm">
-                                            <label htmlFor={`ref-name-${match.id}`}>Referee</label>
-                                            <div className="input-row">
-                                                <input
-                                                    id={`ref-name-${match.id}`}
-                                                    value={getRefereeDraft(match)}
-                                                    onChange={(event) =>
-                                                        setRefereeDrafts((prev) => ({
-                                                            ...prev,
-                                                            [match.id]: event.target.value,
-                                                        }))
-                                                    }
-                                                    placeholder="Enter referee name"
-                                                />
-                                                <button
-                                                    className="btn btn-outline"
-                                                    disabled={submitting}
-                                                    onClick={() => handleStartMatch(match)}
+                                            return (
+                                                <div
+                                                    key={match.id}
+                                                    className={`queue-item ${isActive ? "active" : ""} ${getTieToneClass(match.tie_no)} ${isRecommended ? "is-recommended" : ""}`}
+                                                    style={{ animationDelay: `${Math.min((groupIndex * 4 + index) * 35, 300)}ms` }}
                                                 >
-                                                    Start
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
+                                                    <div className="stack-sm">
+                                                        <div className="panel-head">
+                                                            <div>
+                                                                <div className="match-topline">
+                                                                    <p className="match-meta">
+                                                                        Match #{match.match_no} • {match.discipline}
+                                                                    </p>
+                                                                </div>
+                                                                <h5>
+                                                                    {match.team1} vs {match.team2}
+                                                                </h5>
+                                                                <p className="match-meta">
+                                                                    Day {match.day} • {match.session} • {formatTime12Hour(match.time)}
+                                                                </p>
+                                                            </div>
+                                                            <StatusPill status={match.status} />
+                                                        </div>
 
-                                    {match.status === "live" && (
-                                        <div className="input-row">
-                                            <button
-                                                className="btn btn-outline"
-                                                disabled={submitting}
-                                                onClick={() => {
-                                                    setActiveMatchId(match.id);
-                                                    setError("");
-                                                    setMessage("");
-                                                }}
-                                            >
-                                                Open Scoring
-                                            </button>
-                                            <button
-                                                className="btn btn-outline"
-                                                disabled={submitting}
-                                                onClick={() => handleStopLiveMatch(match)}
-                                            >
-                                                Stop Match
-                                            </button>
-                                        </div>
-                                    )}
+                                                        {showLineupPreview && (
+                                                            <p className="lineup">
+                                                                {match.team1_lineup} <span>vs</span> {match.team2_lineup}
+                                                            </p>
+                                                        )}
 
-                                    {match.status === "completed" && (
-                                        <p className="match-meta">
-                                            Final score: {match.team1_score} - {match.team2_score}
-                                        </p>
-                                    )}
+                                                        {match.status === "pending" && (
+                                                            <div className="stack-sm">
+                                                                <div className="pending-lineup-grid">
+                                                                    <div className="stack-sm">
+                                                                        <label htmlFor={`pending-lineup-team1-${match.id}`}>{match.team1} players</label>
+                                                                        <input
+                                                                            id={`pending-lineup-team1-${match.id}`}
+                                                                            value={getPendingLineupDraft(match, 1)}
+                                                                            onChange={(event) => {
+                                                                                const value = event.target.value;
+                                                                                setPendingLineups((prev) => ({
+                                                                                    ...prev,
+                                                                                    [match.id]: {
+                                                                                        team1: value,
+                                                                                        team2: prev[match.id]?.team2 ?? match.team2_lineup ?? "",
+                                                                                    },
+                                                                                }));
+                                                                                setPendingLineupReady((prev) => ({ ...prev, [match.id]: false }));
+                                                                            }}
+                                                                            placeholder="Player 1 / Player 2"
+                                                                        />
+                                                                    </div>
 
-                                    {needsInlineScore && (
-                                        <div className="stack-md">
-                                            <p className="match-meta">
-                                                Active referee: {activeMatch?.referee_name || "Not assigned"}
-                                            </p>
+                                                                    <div className="stack-sm">
+                                                                        <label htmlFor={`pending-lineup-team2-${match.id}`}>{match.team2} players</label>
+                                                                        <input
+                                                                            id={`pending-lineup-team2-${match.id}`}
+                                                                            value={getPendingLineupDraft(match, 2)}
+                                                                            onChange={(event) => {
+                                                                                const value = event.target.value;
+                                                                                setPendingLineups((prev) => ({
+                                                                                    ...prev,
+                                                                                    [match.id]: {
+                                                                                        team1: prev[match.id]?.team1 ?? match.team1_lineup ?? "",
+                                                                                        team2: value,
+                                                                                    },
+                                                                                }));
+                                                                                setPendingLineupReady((prev) => ({ ...prev, [match.id]: false }));
+                                                                            }}
+                                                                            placeholder="Player 1 / Player 2"
+                                                                        />
+                                                                    </div>
+                                                                </div>
 
-                                            {needsInlineLineup && (
-                                                <div className="stack-sm">
-                                                    <p className="match-meta">
-                                                        Player names must be confirmed for this match before scoring.
-                                                    </p>
-                                                    <p className="match-meta">
-                                                        Lineup status: {lineupConfirmed ? "Confirmed" : "Pending confirmation"}
-                                                    </p>
-                                                    <label htmlFor={`lineup-team1-${match.id}`}>{match.team1} lineup</label>
-                                                    <input
-                                                        id={`lineup-team1-${match.id}`}
-                                                        value={team1LineupInput}
-                                                        onChange={(event) => {
-                                                            setTeam1LineupInput(event.target.value);
-                                                            setLineupDraftDirty(true);
-                                                        }}
-                                                        placeholder={requiresStrictLineup ? "Player 1 / Player 2" : "Enter confirmed player name(s)"}
-                                                    />
+                                                                <div className="input-row">
+                                                                    <button
+                                                                        className="btn btn-outline"
+                                                                        disabled={submitting}
+                                                                        onClick={() => handlePendingLineupUpdate(match)}
+                                                                    >
+                                                                        Update Players
+                                                                    </button>
+                                                                    <span
+                                                                        className={`pending-lineup-state ${pendingLineupReady[match.id] ? "ready" : "pending"}`}
+                                                                    >
+                                                                        {pendingLineupReady[match.id]
+                                                                            ? "Players Updated"
+                                                                            : "Update players required"}
+                                                                    </span>
+                                                                </div>
 
-                                                    <label htmlFor={`lineup-team2-${match.id}`}>{match.team2} lineup</label>
-                                                    <input
-                                                        id={`lineup-team2-${match.id}`}
-                                                        value={team2LineupInput}
-                                                        onChange={(event) => {
-                                                            setTeam2LineupInput(event.target.value);
-                                                            setLineupDraftDirty(true);
-                                                        }}
-                                                        placeholder={requiresStrictLineup ? "Player 1 / Player 2" : "Enter confirmed player name(s)"}
-                                                    />
+                                                                <label htmlFor={`ref-name-${match.id}`}>Referee</label>
+                                                                <div className="input-row">
+                                                                    <input
+                                                                        id={`ref-name-${match.id}`}
+                                                                        value={getRefereeDraft(match)}
+                                                                        onChange={(event) =>
+                                                                            setRefereeDrafts((prev) => ({
+                                                                                ...prev,
+                                                                                [match.id]: event.target.value,
+                                                                            }))
+                                                                        }
+                                                                        placeholder="Enter referee name"
+                                                                    />
+                                                                    <button
+                                                                        className="btn btn-outline"
+                                                                        disabled={submitting || !pendingLineupReady[match.id]}
+                                                                        onClick={() => handleStartMatch(match)}
+                                                                    >
+                                                                        Start
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )}
 
-                                                    <button
-                                                        className="btn btn-outline"
-                                                        disabled={submitting}
-                                                        onClick={handleSaveLineup}
-                                                    >
-                                                        Save Lineup
-                                                    </button>
-                                                </div>
-                                            )}
+                                                        {match.status === "live" && (
+                                                            <div className="input-row">
+                                                                <button
+                                                                    className="btn btn-outline"
+                                                                    disabled={submitting}
+                                                                    onClick={() => {
+                                                                        setActiveMatchId(match.id);
+                                                                        setError("");
+                                                                        setMessage("");
+                                                                    }}
+                                                                >
+                                                                    Open Scoring
+                                                                </button>
+                                                                <button
+                                                                    className="btn btn-outline"
+                                                                    disabled={submitting}
+                                                                    onClick={() => handleStopLiveMatch(match)}
+                                                                >
+                                                                    Stop Match
+                                                                </button>
+                                                            </div>
+                                                        )}
 
-                                            <div className="score-grid">
-                                                <div className="score-card">
-                                                    <h4>{match.team1}</h4>
-                                                    <p className="score-value">{score1}</p>
-                                                    <div className="score-actions">
-                                                        <button onClick={() => adjust(1, -1)}>-</button>
-                                                        <button onClick={() => adjust(1, 1)}>+</button>
+                                                        {match.status === "completed" && (
+                                                            <p className="match-meta">
+                                                                Final score: {match.team1_score} - {match.team2_score}
+                                                            </p>
+                                                        )}
+
+                                                        {needsInlineScore && (
+                                                            <div className="stack-md">
+                                                                <p className="match-meta">
+                                                                    Active referee: {activeMatch?.referee_name || "Not assigned"}
+                                                                </p>
+
+                                                                {needsInlineLineup && (
+                                                                    <div className="stack-sm">
+                                                                        <p className="match-meta">
+                                                                            Player names must be confirmed for this match before scoring.
+                                                                        </p>
+                                                                        <p className="match-meta">
+                                                                            Lineup status: {lineupConfirmed ? "Confirmed" : "Pending confirmation"}
+                                                                        </p>
+                                                                        <label htmlFor={`lineup-team1-${match.id}`}>{match.team1} lineup</label>
+                                                                        <input
+                                                                            id={`lineup-team1-${match.id}`}
+                                                                            value={team1LineupInput}
+                                                                            onChange={(event) => {
+                                                                                setTeam1LineupInput(event.target.value);
+                                                                                setLineupDraftDirty(true);
+                                                                            }}
+                                                                            placeholder={
+                                                                                requiresStrictLineup
+                                                                                    ? "Player 1 / Player 2"
+                                                                                    : "Enter confirmed player name(s)"
+                                                                            }
+                                                                        />
+
+                                                                        <label htmlFor={`lineup-team2-${match.id}`}>{match.team2} lineup</label>
+                                                                        <input
+                                                                            id={`lineup-team2-${match.id}`}
+                                                                            value={team2LineupInput}
+                                                                            onChange={(event) => {
+                                                                                setTeam2LineupInput(event.target.value);
+                                                                                setLineupDraftDirty(true);
+                                                                            }}
+                                                                            placeholder={
+                                                                                requiresStrictLineup
+                                                                                    ? "Player 1 / Player 2"
+                                                                                    : "Enter confirmed player name(s)"
+                                                                            }
+                                                                        />
+
+                                                                        <button
+                                                                            className="btn btn-outline"
+                                                                            disabled={submitting}
+                                                                            onClick={handleSaveLineup}
+                                                                        >
+                                                                            Save Lineup
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="score-grid">
+                                                                    <div className="score-card">
+                                                                        <h4>{match.team1}</h4>
+                                                                        <p className="score-value">{score1}</p>
+                                                                        <div className="score-actions">
+                                                                            <button onClick={() => adjust(1, -1)}>-</button>
+                                                                            <button onClick={() => adjust(1, 1)}>+</button>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="score-card">
+                                                                        <h4>{match.team2}</h4>
+                                                                        <p className="score-value">{score2}</p>
+                                                                        <div className="score-actions">
+                                                                            <button onClick={() => adjust(2, -1)}>-</button>
+                                                                            <button onClick={() => adjust(2, 1)}>+</button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <button
+                                                                    className="btn btn-primary"
+                                                                    disabled={submitting || !activeMatch?.referee_name}
+                                                                    onClick={handleSaveScore}
+                                                                >
+                                                                    Save Score
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
-
-                                                <div className="score-card">
-                                                    <h4>{match.team2}</h4>
-                                                    <p className="score-value">{score2}</p>
-                                                    <div className="score-actions">
-                                                        <button onClick={() => adjust(2, -1)}>-</button>
-                                                        <button onClick={() => adjust(2, 1)}>+</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <button
-                                                className="btn btn-primary"
-                                                disabled={
-                                                    submitting ||
-                                                    !activeMatch?.referee_name
-                                                }
-                                                onClick={handleSaveScore}
-                                            >
-                                                Save Score
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </section>
                         );
                     })}
 
@@ -858,15 +1611,41 @@ export default function Referee() {
                     )}
                 </div>
 
-                {recommendedNextMatch ? (
-                    <p className="muted-note">{formatMatchLabel(recommendedNextMatch)}</p>
-                ) : (
+                {recommendedNextMatch ? null : (
                     <p className="muted-note">All matches completed for selected court.</p>
                 )}
 
                 {error && <p className="error-text">{error}</p>}
                 {message && <p className="success-text">{message}</p>}
             </article>
+
+            {decrementConfirm && (
+                <div className="modal-backdrop" onClick={closeDecrementModal}>
+                    <div
+                        className="confirm-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="decrement-score-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <p className="eyebrow">Confirm Score Change</p>
+                        <h4 id="decrement-score-title">Reduce score?</h4>
+                        <p>
+                            Are you sure you want to reduce score from <strong>{decrementConfirm.from}</strong> to{" "}
+                            <strong>{decrementConfirm.to}</strong> for <strong>{decrementTeamName}</strong>?
+                        </p>
+                        <p className="muted-note">This updates the live score immediately.</p>
+                        <div className="modal-actions">
+                            <button className="btn btn-outline" disabled={submitting} onClick={closeDecrementModal}>
+                                Cancel
+                            </button>
+                            <button className="btn btn-primary" disabled={submitting} onClick={confirmDecrement}>
+                                Yes, Reduce
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </section>
     );
 }

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import crud, schemas, serializers
@@ -10,7 +10,10 @@ router = APIRouter(tags=["ties"])
 @router.get("/", response_model=list[schemas.TieRead])
 def list_ties(db: Session = Depends(get_db)) -> list[schemas.TieRead]:
     ties = crud.get_ties(db)
-    return [serializers.tie_to_read(tie) for tie in ties]
+    return [
+        serializers.tie_to_read(tie, sorted(tie.matches, key=lambda match: match.match_no))
+        for tie in ties
+    ]
 
 
 @router.get("/{tie_id}/matches", response_model=list[schemas.MatchRead])

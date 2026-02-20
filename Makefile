@@ -7,7 +7,7 @@ frontend:
 	cd frontend && npm run dev
 
 seed:
-	cd backend && python seed.py
+	cd backend && python3 seed.py
 
 test:
-	cd backend && pytest
+	cd backend && python3 -m pytest
