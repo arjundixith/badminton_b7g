@@ -1,3 +1,5 @@
+from collections import Counter
+import re
 from typing import Literal
 
 from sqlalchemy import func
@@ -7,6 +9,26 @@ from . import models, schemas, serializers
 
 MatchStage = Literal["tie"]
 MatchStatus = Literal["pending", "live", "completed"]
+
+CATEGORY_ORDER: list[str] = [
+    "Men Advance",
+    "Men Set-1",
+    "Men Set-2",
+    "Men Set-3",
+    "Men Set-4",
+    "Men Set-5",
+    "Women Advance",
+    "Women Intermediate",
+    "Women Beginner",
+]
+
+SET_LEVEL_TO_CATEGORY = {
+    "Set-1": "Men Set-1",
+    "Set-2": "Men Set-2",
+    "Set-3": "Men Set-3",
+    "Set-4": "Men Set-4",
+    "Set-5": "Men Set-5",
+}
 
 
 def _normalize_text(value: str) -> str:
@@ -91,6 +113,129 @@ def _is_confirmed_doubles_lineup(value: str) -> bool:
 
 def _lineup_parts(value: str) -> list[str]:
     return [_normalize_text(item) for item in value.split("/") if _normalize_text(item)]
+
+
+def _discipline_slot_tokens(discipline: str) -> list[str]:
+    clean = _normalize_text(discipline or "")
+    if not clean:
+        return []
+
+    parts = [_normalize_text(item) for item in clean.split("/")]
+    parts = [item for item in parts if item]
+    if parts:
+        return parts
+    return [clean]
+
+
+def _category_from_discipline_token(token: str) -> str | None:
+    text = (token or "").lower()
+    if not text:
+        return None
+
+    if "women" in text and "advance" in text:
+        return "Women Advance"
+    if "women" in text and "intermediate" in text:
+        return "Women Intermediate"
+    if "women" in text and "beginner" in text:
+        return "Women Beginner"
+    if "advance" in text:
+        return "Men Advance"
+
+    if "set-1" in text or "set 1" in text or "set1" in text:
+        return "Men Set-1"
+    if "set-2" in text or "set 2" in text or "set2" in text:
+        return "Men Set-2"
+    if "set-3" in text or "set 3" in text or "set3" in text:
+        return "Men Set-3"
+    if "set-4" in text or "set 4" in text or "set4" in text:
+        return "Men Set-4"
+    if "set-5" in text or "set 5" in text or "set5" in text:
+        return "Men Set-5"
+
+    return None
+
+
+def _winner_lineup_players(lineup: str, excluded_names: set[str]) -> list[str]:
+    players: list[str] = []
+    seen: set[str] = set()
+    for name in _lineup_parts(lineup):
+        key = name.casefold()
+        if key in excluded_names or key in seen:
+            continue
+        seen.add(key)
+        players.append(name)
+    return players
+
+
+def _set_option_categories_from_token(token: str) -> list[str]:
+    text = (token or "").lower()
+    if " or " not in text:
+        return []
+
+    parts = re.split(r"\bor\b", text)
+    seen: set[str] = set()
+    categories: list[str] = []
+    for part in parts:
+        number = None
+        match_with_set = re.search(r"set[\s-]*(\d)", part)
+        if match_with_set:
+            number = match_with_set.group(1)
+        else:
+            # Supports tokens like "Set 1 OR 2" where second option is a bare number.
+            bare_match = re.search(r"\b([1-5])\b", part)
+            if bare_match:
+                number = bare_match.group(1)
+        if not number:
+            continue
+        category = f"Men Set-{number}"
+        if category in CATEGORY_ORDER and category not in seen:
+            seen.add(category)
+            categories.append(category)
+    return categories
+
+
+def _category_options_from_token(token: str) -> list[str]:
+    token_category = _category_from_discipline_token(token)
+    lower_token = (token or "").lower()
+
+    if token_category and token_category.startswith("Women"):
+        return [token_category]
+    if "advance" in lower_token:
+        return ["Men Advance"]
+
+    set_options = _set_option_categories_from_token(token)
+    if set_options:
+        return set_options
+    if token_category:
+        return [token_category]
+    return []
+
+
+def _category_for_slot_assignment(
+    token: str,
+    player_name: str,
+    slot_index: int,
+    set_level_by_name: dict[str, str],
+) -> str | None:
+    options = _category_options_from_token(token)
+    if not options:
+        level = set_level_by_name.get(player_name.casefold())
+        return SET_LEVEL_TO_CATEGORY.get(level) if level else None
+
+    if len(options) == 1:
+        return options[0]
+
+    # When OR options are present, prefer player's registered set-level.
+    level = set_level_by_name.get(player_name.casefold())
+    if level:
+        level_category = SET_LEVEL_TO_CATEGORY.get(level)
+        if level_category in options:
+            return level_category
+
+    # Fallback to slot ordering (first lineup name => first option, etc).
+    if 0 <= slot_index < len(options):
+        return options[slot_index]
+    return options[0]
 
 
 def _is_decider_match(match: models.Match) -> bool:
@@ -983,4 +1128,157 @@ def build_viewer_dashboard(db: Session) -> schemas.ViewerDashboard:
             "Each match is played to 21; at 20-all continue to a 2-point lead, capped at 30.",
             "Referee assignment is mandatory before score updates.",
         ],
+    )
+
+
+def build_post_finals_category_summary(db: Session) -> schemas.PostFinalsCategorySummary:
+    standings = build_standings(db)
+    final_match = get_or_sync_final_match(db, standings)
+    medals = build_medal_summary(db, standings, final_match)
+
+    set_level_by_name: dict[str, str] = {}
+    for player in db.query(models.Player).all():
+        key = player.name.casefold()
+        if key not in set_level_by_name:
+            set_level_by_name[key] = player.set_level
+
+    wins_by_category: dict[str, Counter[str]] = {category: Counter() for category in CATEGORY_ORDER}
+    scores_for_by_category: dict[str, Counter[str]] = {category: Counter() for category in CATEGORY_ORDER}
+    scores_against_by_category: dict[str, Counter[str]] = {category: Counter() for category in CATEGORY_ORDER}
+
+    tie_matches = (
+        db.query(models.Match)
+        .options(
+            selectinload(models.Match.team1),
+            selectinload(models.Match.team2),
+        )
+        .filter(
+            models.Match.stage == "tie",
+            models.Match.winner_side.in_([1, 2]),
+        )
+        .all()
+    )
+
+    total_matches_considered = len(tie_matches)
+    for match in tie_matches:
+        side1_token, side2_token = _discipline_side_tokens(match.discipline)
+        winner_side = match.winner_side or 0
+
+        winner_token = side1_token if winner_side == 1 else side2_token
+        winner_lineup = match.team1_lineup if winner_side == 1 else match.team2_lineup
+        winner_score_points = match.team1_score if winner_side == 1 else match.team2_score
+        opponent_score_points = match.team2_score if winner_side == 1 else match.team1_score
+
+        excluded = {
+            (match.team1.name if match.team1 else "").casefold(),
+            (match.team2.name if match.team2 else "").casefold(),
+            "",
+        }
+        winner_players = _winner_lineup_players(winner_lineup, excluded)
+        if not winner_players:
+            continue
+
+        for player_index, player_name in enumerate(winner_players):
+            category = _category_for_player_on_side(winner_token, f"{player_index}::{player_name}", set_level_by_name)
+            if category not in wins_by_category:
+                continue
+            wins_by_category[category][player_name] += 1
+            scores_for_by_category[category][player_name] += int(winner_score_points)
+            scores_against_by_category[category][player_name] += int(opponent_score_points)
+
+    final_games = (
+        db.query(models.FinalGame)
+        .options(
+            selectinload(models.FinalGame.final_match).selectinload(models.FinalMatch.team1),
+            selectinload(models.FinalGame.final_match).selectinload(models.FinalMatch.team2),
+        )
+        .filter(models.FinalGame.winner_side.in_([1, 2]))
+        .all()
+    )
+    total_matches_considered += len(final_games)
+
+    for game in final_games:
+        final = game.final_match
+        side1_token, side2_token = _discipline_side_tokens(game.discipline)
+        winner_side = game.winner_side or 0
+
+        winner_token = side1_token if winner_side == 1 else side2_token
+        winner_lineup = game.team1_lineup if winner_side == 1 else game.team2_lineup
+        winner_score_points = game.team1_score if winner_side == 1 else game.team2_score
+        opponent_score_points = game.team2_score if winner_side == 1 else game.team1_score
+
+        excluded = {
+            (final.team1.name if final and final.team1 else "").casefold(),
+            (final.team2.name if final and final.team2 else "").casefold(),
+            "",
+        }
+        winner_players = _winner_lineup_players(winner_lineup, excluded)
+        if not winner_players:
+            continue
+
+        for player_index, player_name in enumerate(winner_players):
+            category = _category_for_player_on_side(winner_token, f"{player_index}::{player_name}", set_level_by_name)
+            if category not in wins_by_category:
+                continue
+            wins_by_category[category][player_name] += 1
+            scores_for_by_category[category][player_name] += int(winner_score_points)
+            scores_against_by_category[category][player_name] += int(opponent_score_points)
+
+    categories: list[schemas.CategoryWinnerSummary] = []
+    for category in CATEGORY_ORDER:
+        win_counter = wins_by_category[category]
+        score_for_counter = scores_for_by_category[category]
+        score_against_counter = scores_against_by_category[category]
+        ranked_players = sorted(
+            set(win_counter.keys()) | set(score_for_counter.keys()) | set(score_against_counter.keys()),
+            key=lambda name: (
+                -int(win_counter[name]),
+                int(score_against_counter[name]),
+                -(int(score_for_counter[name]) - int(score_against_counter[name])),
+                -int(score_for_counter[name]),
+                str(name).lower(),
+            ),
+        )
+        winner_wins = int(win_counter[ranked_players[0]]) if ranked_players else 0
+        winner_score = int(score_for_counter[ranked_players[0]]) if ranked_players else 0
+        winner_opponent_score = int(score_against_counter[ranked_players[0]]) if ranked_players else 0
+        winner_lead_score = winner_score - winner_opponent_score
+        winner_names = [
+            name
+            for name in ranked_players
+            if (
+                int(win_counter[name]) == winner_wins
+                and int(score_against_counter[name]) == winner_opponent_score
+                and (int(score_for_counter[name]) - int(score_against_counter[name])) == winner_lead_score
+                and winner_wins > 0
+            )
+        ]
+
+        categories.append(
+            schemas.CategoryWinnerSummary(
+                category=category,
+                winner_names=winner_names,
+                winner_wins=winner_wins,
+                winner_score=winner_score,
+                winner_opponent_score=winner_opponent_score,
+                winner_lead_score=winner_lead_score,
+                rankings=[
+                    schemas.CategoryPlayerWin(
+                        player_name=name,
+                        wins=int(win_counter[name]),
+                        total_score=int(score_for_counter[name]),
+                        opponent_score=int(score_against_counter[name]),
+                        lead_score=int(score_for_counter[name]) - int(score_against_counter[name]),
+                    )
+                    for name in ranked_players
+                ],
+            )
+        )
+
+    return schemas.PostFinalsCategorySummary(
+        final_completed=bool(final_match and final_match.status == "completed"),
+        final_status=final_match.status if final_match else None,
+        total_matches_considered=total_matches_considered,
+        medals=medals,
+        categories=categories,
     )

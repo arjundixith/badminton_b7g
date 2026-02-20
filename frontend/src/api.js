@@ -37,6 +37,10 @@ export function getStandings() {
     return request("/viewer/standings");
 }
 
+export function getPostFinalsSummary() {
+    return request("/viewer/post-finals");
+}
+
 export function getMatches({ stage, status, tieId } = {}) {
     const query = new URLSearchParams();
 

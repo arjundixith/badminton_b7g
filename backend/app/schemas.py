@@ -198,6 +198,32 @@ class MedalSummary(BaseModel):
     bronze_team: str | None = None
 
 
+class CategoryPlayerWin(BaseModel):
+    player_name: str
+    wins: int
+    total_score: int = 0
+    opponent_score: int = 0
+    lead_score: int = 0
+
+
+class CategoryWinnerSummary(BaseModel):
+    category: str
+    winner_names: list[str] = Field(default_factory=list)
+    winner_wins: int = 0
+    winner_score: int = 0
+    winner_opponent_score: int = 0
+    winner_lead_score: int = 0
+    rankings: list[CategoryPlayerWin] = Field(default_factory=list)
+
+
+class PostFinalsCategorySummary(BaseModel):
+    final_completed: bool
+    final_status: MatchStatus | None = None
+    total_matches_considered: int
+    medals: MedalSummary
+    categories: list[CategoryWinnerSummary] = Field(default_factory=list)
+
+
 class ViewerDashboard(BaseModel):
     summary: DashboardSummary
     standings: list[StandingRow]

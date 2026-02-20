@@ -118,14 +118,26 @@ a {
 
 .menu {
     display: flex;
+    flex-wrap: nowrap;
     gap: 4px;
     padding: 4px;
     background: rgba(255, 255, 255, 0.56);
     border: 1px solid rgba(16, 54, 82, 0.15);
     border-radius: 999px;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.menu::-webkit-scrollbar {
+    display: none;
 }
 
 .menu a {
+    flex: 0 0 auto;
+    white-space: nowrap;
     padding: 8px 14px;
     border-radius: 999px;
     font-size: 0.9rem;
@@ -533,10 +545,40 @@ a {
     padding: 10px;
 }
 
+.podium-card.gold {
+    border-color: rgba(161, 98, 7, 0.45);
+    background: linear-gradient(145deg, rgba(254, 240, 138, 0.34), rgba(255, 255, 255, 0.92));
+}
+
+.podium-card.silver {
+    border-color: rgba(71, 85, 105, 0.4);
+    background: linear-gradient(145deg, rgba(226, 232, 240, 0.55), rgba(255, 255, 255, 0.92));
+}
+
+.podium-card.bronze {
+    border-color: rgba(146, 64, 14, 0.45);
+    background: linear-gradient(145deg, rgba(253, 230, 138, 0.28), rgba(255, 255, 255, 0.92));
+}
+
 .podium-card p {
     font-family: "Space Mono", monospace;
     font-size: 0.72rem;
     color: var(--ink-500);
+}
+
+.podium-card.gold p,
+.podium-card.gold h5 {
+    color: #7c2d12;
+}
+
+.podium-card.silver p,
+.podium-card.silver h5 {
+    color: #334155;
+}
+
+.podium-card.bronze p,
+.podium-card.bronze h5 {
+    color: #7c2d12;
 }
 
 .podium-card h5 {
@@ -1150,7 +1192,8 @@ input {
 
     .menu {
         width: 100%;
-        justify-content: space-between;
+        justify-content: flex-start;
+        gap: 6px;
     }
 
     .menu a {

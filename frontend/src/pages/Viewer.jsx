@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getViewerDashboard } from "../api";
 
@@ -52,29 +52,46 @@ function getMedalForTeam(teamName, medals) {
     return "";
 }
 
+function medalLabelFromClass(value) {
+    if (value === "gold") {
+        return "Gold";
+    }
+    if (value === "silver") {
+        return "Silver";
+    }
+    if (value === "bronze") {
+        return "Bronze";
+    }
+    return "";
+}
+
 export default function Viewer() {
     const [dashboard, setDashboard] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [selectedTeamId, setSelectedTeamId] = useState(null);
+    const requestIdRef = useRef(0);
 
     useEffect(() => {
         let mounted = true;
         let intervalId;
 
         async function loadDashboard({ initial = false } = {}) {
+            const requestId = requestIdRef.current + 1;
+            requestIdRef.current = requestId;
+
             try {
                 const payload = await getViewerDashboard();
-                if (mounted) {
+                if (mounted && requestId === requestIdRef.current) {
                     setDashboard(payload);
                     setError("");
                 }
             } catch (err) {
-                if (mounted) {
+                if (mounted && requestId === requestIdRef.current) {
                     setError(err.message || "Failed to load viewer dashboard");
                 }
             } finally {
-                if (mounted && initial) {
+                if (mounted && initial && requestId === requestIdRef.current) {
                     setLoading(false);
                 }
             }
@@ -85,17 +102,34 @@ export default function Viewer() {
             loadDashboard();
         }, 1500);
 
+        const handleVisibilityRefresh = () => {
+            if (document.visibilityState === "visible") {
+                loadDashboard();
+            }
+        };
+        const handleFocusRefresh = () => {
+            loadDashboard();
+        };
+        document.addEventListener("visibilitychange", handleVisibilityRefresh);
+        window.addEventListener("focus", handleFocusRefresh);
+
         return () => {
             mounted = false;
             if (intervalId) {
                 window.clearInterval(intervalId);
             }
+            document.removeEventListener("visibilitychange", handleVisibilityRefresh);
+            window.removeEventListener("focus", handleFocusRefresh);
         };
     }, []);
 
     const ties = dashboard?.ties ?? [];
     const tieStandings = dashboard?.standings ?? [];
     const finalMatch = dashboard?.final_match ?? null;
+    const finalGames = useMemo(
+        () => (finalMatch?.matches ? [...finalMatch.matches].sort((a, b) => a.match_no - b.match_no) : []),
+        [finalMatch],
+    );
     const medals = dashboard?.medals ?? {};
     const completedTieCount = ties.filter((tie) => tie.status === "completed").length;
     const tieProgress = useMemo(() => [...ties].sort((a, b) => a.tie_no - b.tie_no), [ties]);
@@ -103,11 +137,11 @@ export default function Viewer() {
         Number(dashboard?.summary?.total_ties ?? ties.length) > 0 &&
         Number(dashboard?.summary?.completed_ties ?? completedTieCount) === Number(dashboard?.summary?.total_ties ?? ties.length);
     const liveMatches = useMemo(() => {
-        return tieProgress
+        const tieLiveMatches = tieProgress
             .flatMap((tie) =>
                 tie.matches
                     .filter((match) => match.status === "live")
-                    .map((match) => ({ ...match, tie_no: tie.tie_no })),
+                    .map((match) => ({ ...match, tie_no: tie.tie_no, stage: "tie" })),
             )
             .sort((a, b) => {
                 if ((a.tie_no ?? 0) !== (b.tie_no ?? 0)) {
@@ -115,7 +149,29 @@ export default function Viewer() {
                 }
                 return a.match_no - b.match_no;
             });
-    }, [tieProgress]);
+
+        const finalLiveMatches = finalGames
+            .filter((game) => game.status === "live")
+            .map((game) => ({
+                ...game,
+                stage: "final",
+                team1: finalMatch?.team1 ?? "Finalist 1",
+                team2: finalMatch?.team2 ?? "Finalist 2",
+            }))
+            .sort((a, b) => a.match_no - b.match_no);
+
+        return [...tieLiveMatches, ...finalLiveMatches];
+    }, [tieProgress, finalGames, finalMatch]);
+
+    const finalGamesCompletedCount = useMemo(
+        () => finalGames.filter((game) => game.status === "completed").length,
+        [finalGames],
+    );
+    const finalLiveGame = useMemo(
+        () => finalGames.find((game) => game.status === "live") ?? null,
+        [finalGames],
+    );
+    const finalCompleted = Boolean(finalMatch && finalMatch.status === "completed");
 
     const teamTabs = useMemo(
         () =>
@@ -187,15 +243,15 @@ export default function Viewer() {
     return (
         <section className="stack-lg viewer-shell">
             <div className="podium-strip">
-                <article className="podium-card">
+                <article className="podium-card gold">
                     <p>Gold</p>
                     <h5>{medals.gold_team ?? "TBD"}</h5>
                 </article>
-                <article className="podium-card">
+                <article className="podium-card silver">
                     <p>Silver</p>
                     <h5>{medals.silver_team ?? "TBD"}</h5>
                 </article>
-                <article className="podium-card">
+                <article className="podium-card bronze">
                     <p>Bronze</p>
                     <h5>{medals.bronze_team ?? "TBD"}</h5>
                 </article>
@@ -222,10 +278,12 @@ export default function Viewer() {
                     )}
 
                     {liveMatches.slice(0, 2).map((match) => (
-                        <article key={match.id} className="live-score-card">
+                        <article key={`${match.stage}-${match.id}`} className="live-score-card">
                             <div className="live-score-head">
                                 <p className="match-meta">
-                                    Tie {match.tie_no} • #{match.match_no} • Court {match.court}
+                                    {match.stage === "final"
+                                        ? `Final Tie • #${match.match_no}`
+                                        : `Tie ${match.tie_no} • #${match.match_no} • Court ${match.court}`}
                                 </p>
                                 <span className="status-pill live">Live</span>
                             </div>
@@ -381,6 +439,89 @@ export default function Viewer() {
                                         : "Will start after league completion"}
                                 </span>
                             </article>
+                        </div>
+                    )}
+                    {leagueComplete && finalMatch && (
+                        <p className="match-meta">
+                            Final games: {finalGamesCompletedCount}/{finalGames.length || 12}
+                            {finalLiveGame ? ` • Live now: Game #${finalLiveGame.match_no} (${finalLiveGame.team1_score}-${finalLiveGame.team2_score})` : ""}
+                        </p>
+                    )}
+
+                    {leagueComplete && finalCompleted && (
+                        <div className="stack-sm">
+                            <div className="panel-head">
+                                <h3>Final Tie Details</h3>
+                                <p>Final completed with medal winners.</p>
+                            </div>
+                            <p className="match-meta">
+                                {finalMatch.team1}
+                                {getMedalForTeam(finalMatch.team1, medals) ? (
+                                    <span className={`standing-badge ${getMedalForTeam(finalMatch.team1, medals)}`}>
+                                        {medalLabelFromClass(getMedalForTeam(finalMatch.team1, medals))}
+                                    </span>
+                                ) : null}
+                                {" vs "}
+                                {finalMatch.team2}
+                                {getMedalForTeam(finalMatch.team2, medals) ? (
+                                    <span className={`standing-badge ${getMedalForTeam(finalMatch.team2, medals)}`}>
+                                        {medalLabelFromClass(getMedalForTeam(finalMatch.team2, medals))}
+                                    </span>
+                                ) : null}
+                                {medals.bronze_team ? (
+                                    <>
+                                        {" • Bronze: "}
+                                        {medals.bronze_team}
+                                        <span className="standing-badge bronze">Bronze</span>
+                                    </>
+                                ) : null}
+                            </p>
+
+                            <div className="table-wrap">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Game</th>
+                                            <th>Discipline</th>
+                                            <th>Score</th>
+                                            <th>Winner</th>
+                                            <th>Referee</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {finalGames.map((game) => {
+                                            const winnerTeam =
+                                                game.winner_side === 1
+                                                    ? finalMatch.team1
+                                                    : game.winner_side === 2
+                                                      ? finalMatch.team2
+                                                      : "-";
+                                            const winnerMedalClass = getMedalForTeam(winnerTeam, medals);
+
+                                            return (
+                                                <tr key={`final-row-${game.id}`}>
+                                                    <td>#{game.match_no}</td>
+                                                    <td>{game.discipline}</td>
+                                                    <td>
+                                                        {game.team1_score} - {game.team2_score}
+                                                    </td>
+                                                    <td>
+                                                        {winnerTeam}
+                                                        {winnerMedalClass ? (
+                                                            <span className={`standing-badge ${winnerMedalClass}`}>
+                                                                {medalLabelFromClass(winnerMedalClass)}
+                                                            </span>
+                                                        ) : null}
+                                                    </td>
+                                                    <td>{game.referee_name || "-"}</td>
+                                                    <td>{game.status}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     )}
 

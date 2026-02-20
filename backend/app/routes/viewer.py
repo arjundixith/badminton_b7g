@@ -15,3 +15,8 @@ def viewer_dashboard(db: Session = Depends(get_db)) -> schemas.ViewerDashboard:
 @router.get("/standings", response_model=list[schemas.StandingRow])
 def standings(db: Session = Depends(get_db)) -> list[schemas.StandingRow]:
     return crud.build_standings(db)
+
+
+@router.get("/post-finals", response_model=schemas.PostFinalsCategorySummary)
+def post_finals_category_summary(db: Session = Depends(get_db)) -> schemas.PostFinalsCategorySummary:
+    return crud.build_post_finals_category_summary(db)

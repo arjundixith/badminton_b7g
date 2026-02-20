@@ -296,3 +296,269 @@ def test_final_tie_creation_and_medals(client, session_factory):
     refreshed_payload = refreshed.json()
     assert refreshed_payload["medals"]["gold_team"] == final_payload["winner_team"]
     assert refreshed_payload["medals"]["silver_team"] is not None
+
+
+def test_final_games_counted_only_after_all_ties_completed(client, session_factory):
+    seed_completed_league_for_tiebreak(session_factory)
+
+    complete_dashboard = client.get("/viewer/dashboard")
+    assert complete_dashboard.status_code == 200
+    complete_payload = complete_dashboard.json()
+
+    league_games = sum(len(tie["matches"]) for tie in complete_payload["ties"])
+    assert league_games > 0
+    assert complete_payload["summary"]["completed_ties"] == complete_payload["summary"]["total_ties"] == 10
+    assert complete_payload["final_match"] is not None
+    assert len(complete_payload["final_match"]["matches"]) == 12
+    assert complete_payload["summary"]["total_games"] == league_games + 12
+
+    with session_factory() as db:
+        tie = db.query(models.Tie).filter(models.Tie.tie_no == 1).first()
+        assert tie is not None
+        tie.status = "pending"
+        tie.winner_team_id = None
+        db.commit()
+
+    incomplete_dashboard = client.get("/viewer/dashboard")
+    assert incomplete_dashboard.status_code == 200
+    incomplete_payload = incomplete_dashboard.json()
+
+    assert incomplete_payload["summary"]["completed_ties"] == 9
+    assert incomplete_payload["summary"]["total_ties"] == 10
+    assert incomplete_payload["final_match"] is None
+    assert incomplete_payload["summary"]["total_games"] == league_games
+
+
+def test_post_finals_category_summary_endpoint(client, session_factory):
+    seed_completed_league_for_tiebreak(session_factory)
+
+    response = client.get("/viewer/post-finals")
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert "categories" in payload
+    assert len(payload["categories"]) == 9
+    assert payload["total_matches_considered"] >= 30
+    assert payload["medals"]["bronze_team"] is not None
+
+    categories = {item["category"] for item in payload["categories"]}
+    assert "Men Advance" in categories
+    assert "Women Intermediate" in categories
+
+
+def test_post_finals_mixed_pair_counts_by_individual_set_level(client, session_factory):
+    with session_factory() as db:
+        team_a = models.Team(name="Alpha")
+        team_b = models.Team(name="Bravo")
+        db.add_all([team_a, team_b])
+        db.flush()
+
+        db.add_all(
+            [
+                models.Player(name="A Set1", set_level="Set-1", team_id=team_a.id),
+                models.Player(name="A Set2", set_level="Set-2", team_id=team_a.id),
+                models.Player(name="B Set1", set_level="Set-1", team_id=team_b.id),
+                models.Player(name="B Set2", set_level="Set-2", team_id=team_b.id),
+            ]
+        )
+
+        tie = models.Tie(
+            tie_no=1,
+            day=1,
+            session="morning",
+            court=1,
+            team1_id=team_a.id,
+            team2_id=team_b.id,
+            score1=1,
+            score2=0,
+            status="completed",
+            winner_team_id=team_a.id,
+        )
+        db.add(tie)
+        db.flush()
+
+        db.add(
+            models.Match(
+                stage="tie",
+                status="completed",
+                tie_id=tie.id,
+                match_no=1,
+                discipline="Set 1 OR 2 / Set 1 OR 2",
+                team1_id=team_a.id,
+                team2_id=team_b.id,
+                team1_lineup="A Set1 / A Set2",
+                team2_lineup="B Set1 / B Set2",
+                lineup_confirmed=True,
+                day=1,
+                session="morning",
+                court=1,
+                time="09:00",
+                team1_score=21,
+                team2_score=14,
+                winner_side=1,
+            )
+        )
+        db.commit()
+
+    response = client.get("/viewer/post-finals")
+    assert response.status_code == 200
+    payload = response.json()
+
+    category_rows = {item["category"]: item for item in payload["categories"]}
+    set1_rows = {item["player_name"]: item["wins"] for item in category_rows["Men Set-1"]["rankings"]}
+    set2_rows = {item["player_name"]: item["wins"] for item in category_rows["Men Set-2"]["rankings"]}
+
+    assert set1_rows.get("A Set1") == 1
+    assert set2_rows.get("A Set2") == 1
+
+
+def test_post_finals_or_token_uses_lineup_order_for_set_split(client, session_factory):
+    with session_factory() as db:
+        team_a = models.Team(name="Alpha")
+        team_b = models.Team(name="Bravo")
+        db.add_all([team_a, team_b])
+        db.flush()
+
+        # Intentionally set both winners to Set-1 in player master.
+        # OR-token mapping should still count 2nd lineup name as Set-2.
+        db.add_all(
+            [
+                models.Player(name="Suman", set_level="Set-1", team_id=team_a.id),
+                models.Player(name="Arjun", set_level="Set-1", team_id=team_a.id),
+                models.Player(name="B One", set_level="Set-1", team_id=team_b.id),
+                models.Player(name="B Two", set_level="Set-1", team_id=team_b.id),
+            ]
+        )
+
+        tie = models.Tie(
+            tie_no=1,
+            day=1,
+            session="morning",
+            court=1,
+            team1_id=team_a.id,
+            team2_id=team_b.id,
+            score1=1,
+            score2=0,
+            status="completed",
+            winner_team_id=team_a.id,
+        )
+        db.add(tie)
+        db.flush()
+
+        db.add(
+            models.Match(
+                stage="tie",
+                status="completed",
+                tie_id=tie.id,
+                match_no=1,
+                discipline="Set 1 OR 2 / Set 1 OR 2",
+                team1_id=team_a.id,
+                team2_id=team_b.id,
+                team1_lineup="Suman / Arjun",
+                team2_lineup="B One / B Two",
+                lineup_confirmed=True,
+                day=1,
+                session="morning",
+                court=1,
+                time="09:00",
+                team1_score=21,
+                team2_score=18,
+                winner_side=1,
+            )
+        )
+        db.commit()
+
+    response = client.get("/viewer/post-finals")
+    assert response.status_code == 200
+    payload = response.json()
+    category_rows = {item["category"]: item for item in payload["categories"]}
+    set1_rows = {item["player_name"]: item["wins"] for item in category_rows["Men Set-1"]["rankings"]}
+    set2_rows = {item["player_name"]: item["wins"] for item in category_rows["Men Set-2"]["rankings"]}
+
+    assert set1_rows.get("Suman") == 1
+    assert set2_rows.get("Arjun") == 1
+
+
+def test_post_finals_category_tiebreak_uses_opponent_score_then_lead(client, session_factory):
+    with session_factory() as db:
+        team_a = models.Team(name="Alpha")
+        team_b = models.Team(name="Bravo")
+        db.add_all([team_a, team_b])
+        db.flush()
+
+        db.add_all(
+            [
+                models.Player(name="A Set1", set_level="Set-1", team_id=team_a.id),
+                models.Player(name="B Set1", set_level="Set-1", team_id=team_b.id),
+            ]
+        )
+
+        tie = models.Tie(
+            tie_no=1,
+            day=1,
+            session="morning",
+            court=1,
+            team1_id=team_a.id,
+            team2_id=team_b.id,
+            score1=1,
+            score2=1,
+            status="live",
+            winner_team_id=None,
+        )
+        db.add(tie)
+        db.flush()
+
+        db.add_all(
+            [
+                models.Match(
+                    stage="tie",
+                    status="completed",
+                    tie_id=tie.id,
+                    match_no=1,
+                    discipline="Set-1 / Set-1",
+                    team1_id=team_a.id,
+                    team2_id=team_b.id,
+                    team1_lineup="A Set1",
+                    team2_lineup="B Set1",
+                    lineup_confirmed=True,
+                    day=1,
+                    session="morning",
+                    court=1,
+                    time="09:00",
+                    team1_score=21,
+                    team2_score=18,
+                    winner_side=1,
+                ),
+                models.Match(
+                    stage="tie",
+                    status="completed",
+                    tie_id=tie.id,
+                    match_no=2,
+                    discipline="Set-1 / Set-1",
+                    team1_id=team_a.id,
+                    team2_id=team_b.id,
+                    team1_lineup="A Set1",
+                    team2_lineup="B Set1",
+                    lineup_confirmed=True,
+                    day=1,
+                    session="morning",
+                    court=1,
+                    time="09:30",
+                    team1_score=23,
+                    team2_score=25,
+                    winner_side=2,
+                ),
+            ]
+        )
+        db.commit()
+
+    response = client.get("/viewer/post-finals")
+    assert response.status_code == 200
+    payload = response.json()
+
+    category_rows = {item["category"]: item for item in payload["categories"]}
+    men_set1 = category_rows["Men Set-1"]
+    assert men_set1["winner_names"] == ["A Set1"]
+    assert men_set1["winner_wins"] == 1
+    assert men_set1["winner_opponent_score"] == 18
+    assert men_set1["winner_lead_score"] == 3

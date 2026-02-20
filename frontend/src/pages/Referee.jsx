@@ -165,6 +165,35 @@ function getTieToneClass(tieNo) {
     return `tie-tone-${((Math.trunc(value) - 1) % 6) + 1}`;
 }
 
+function medalClassForTeam(teamName, medals) {
+    if (!teamName || !medals) {
+        return "";
+    }
+    if (medals.gold_team === teamName) {
+        return "gold";
+    }
+    if (medals.silver_team === teamName) {
+        return "silver";
+    }
+    if (medals.bronze_team === teamName) {
+        return "bronze";
+    }
+    return "";
+}
+
+function medalLabelFromClass(value) {
+    if (value === "gold") {
+        return "Gold";
+    }
+    if (value === "silver") {
+        return "Silver";
+    }
+    if (value === "bronze") {
+        return "Bronze";
+    }
+    return "";
+}
+
 export default function Referee() {
     const [matches, setMatches] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -193,6 +222,7 @@ export default function Referee() {
     const [pendingLineups, setPendingLineups] = useState({});
     const [pendingLineupReady, setPendingLineupReady] = useState({});
     const [decrementConfirm, setDecrementConfirm] = useState(null);
+    const [finalDecrementConfirm, setFinalDecrementConfirm] = useState(null);
     const [tieExpandedByContext, setTieExpandedByContext] = useState({});
     const [submitting, setSubmitting] = useState(false);
     const [scoreDraftDirty, setScoreDraftDirty] = useState(false);
@@ -310,6 +340,26 @@ export default function Referee() {
         () => orderedMatches.filter((match) => match.court === selectedCourt),
         [orderedMatches, selectedCourt],
     );
+    const finalGames = useMemo(
+        () => (finalMatch?.matches ? [...finalMatch.matches].sort((a, b) => a.match_no - b.match_no) : []),
+        [finalMatch],
+    );
+    const finalGamesCompletedCount = useMemo(
+        () => finalGames.filter((game) => game.status === "completed").length,
+        [finalGames],
+    );
+    const finalGamesByStatus = useMemo(
+        () => ({
+            pending: finalGames.filter((game) => game.status === "pending").length,
+            live: finalGames.filter((game) => game.status === "live").length,
+            completed: finalGames.filter((game) => game.status === "completed").length,
+        }),
+        [finalGames],
+    );
+    const finalGamesForStatus = useMemo(
+        () => finalGames.filter((game) => game.status === statusFilter),
+        [finalGames, statusFilter],
+    );
 
     const stageStatusMatches = useMemo(() => {
         return courtStageMatches.filter((match) => match.status === statusFilter);
@@ -327,8 +377,12 @@ export default function Referee() {
             }
         }
 
+        counts.pending += finalGamesByStatus.pending;
+        counts.live += finalGamesByStatus.live;
+        counts.completed += finalGamesByStatus.completed;
+
         return counts;
-    }, [orderedMatches]);
+    }, [orderedMatches, finalGamesByStatus]);
 
     const queueMatches = stageStatusMatches;
     const tieGroups = useMemo(() => {
@@ -685,10 +739,10 @@ export default function Referee() {
         }
     }
 
-    async function handleSaveFinalGameScore(game) {
+    async function handleSaveFinalGameScore(game, providedScores = null, { autoTriggered = false } = {}) {
         const draft = getFinalGameDraft(game);
-        const nextScore1 = Number(draft.score1);
-        const nextScore2 = Number(draft.score2);
+        const nextScore1 = Number(providedScores?.score1 ?? draft.score1);
+        const nextScore2 = Number(providedScores?.score2 ?? draft.score2);
         if (!Number.isFinite(nextScore1) || !Number.isFinite(nextScore2)) {
             setError(`Enter valid numeric scores for final game ${game.match_no}.`);
             setMessage("");
@@ -707,7 +761,7 @@ export default function Referee() {
             setFinalMatch(payload);
             if (payload.status === "completed") {
                 setMessage(`Final tie completed: ${payload.team1} ${payload.team1_score} - ${payload.team2_score} ${payload.team2}.`);
-            } else {
+            } else if (!autoTriggered) {
                 setMessage(`Final game ${game.match_no} score updated.`);
             }
             await refreshFinalDashboard();
@@ -716,6 +770,87 @@ export default function Referee() {
         } finally {
             setSubmitting(false);
         }
+    }
+
+    function applyFinalScoreDelta(game, team, delta) {
+        if (submitting) {
+            return;
+        }
+
+        const draft = getFinalGameDraft(game);
+        const currentScore1 = Math.max(0, Math.min(30, Number(draft.score1) || 0));
+        const currentScore2 = Math.max(0, Math.min(30, Number(draft.score2) || 0));
+
+        let nextScore1 = currentScore1;
+        let nextScore2 = currentScore2;
+
+        if (team === 1) {
+            const cap = getScoreCap(currentScore1, currentScore2);
+            nextScore1 = Math.max(0, Math.min(cap, currentScore1 + delta));
+        } else {
+            const cap = getScoreCap(currentScore2, currentScore1);
+            nextScore2 = Math.max(0, Math.min(cap, currentScore2 + delta));
+        }
+
+        if (nextScore1 === currentScore1 && nextScore2 === currentScore2) {
+            return;
+        }
+
+        setFinalGameDrafts((prev) => ({
+            ...prev,
+            [game.id]: {
+                referee: prev[game.id]?.referee ?? game.referee_name ?? "",
+                score1: nextScore1,
+                score2: nextScore2,
+            },
+        }));
+        void handleSaveFinalGameScore(
+            game,
+            {
+                score1: nextScore1,
+                score2: nextScore2,
+            },
+            { autoTriggered: true },
+        );
+    }
+
+    function adjustFinalScore(game, team, delta) {
+        if (delta < 0) {
+            const draft = getFinalGameDraft(game);
+            const from = team === 1 ? Number(draft.score1) || 0 : Number(draft.score2) || 0;
+            if (from > 0) {
+                setFinalDecrementConfirm({
+                    gameId: game.id,
+                    gameNo: game.match_no,
+                    team,
+                    from,
+                    to: Math.max(0, from + delta),
+                });
+                return;
+            }
+        }
+
+        applyFinalScoreDelta(game, team, delta);
+    }
+
+    function closeFinalDecrementModal() {
+        setFinalDecrementConfirm(null);
+    }
+
+    function confirmFinalDecrement() {
+        if (!finalDecrementConfirm) {
+            return;
+        }
+
+        const game = finalGames.find((item) => item.id === finalDecrementConfirm.gameId);
+        if (!game) {
+            setFinalDecrementConfirm(null);
+            return;
+        }
+
+        const { team } = finalDecrementConfirm;
+        setFinalDecrementConfirm(null);
+        applyFinalScoreDelta(game, team, -1);
     }
 
     async function handleStartMatch(match) {
@@ -1061,20 +1196,18 @@ export default function Referee() {
             : decrementConfirm?.team === 2
               ? activeMatch?.team2 || "Team 2"
               : "Team";
+    const finalDecrementTeamName =
+        finalDecrementConfirm?.team === 1
+            ? finalMatch?.team1 || "Team 1"
+            : finalDecrementConfirm?.team === 2
+              ? finalMatch?.team2 || "Team 2"
+              : "Team";
     const hasStoredExpandedTie = Object.prototype.hasOwnProperty.call(tieExpandedByContext, tieExpansionContextKey);
     const expandedTieKey = hasStoredExpandedTie
         ? tieExpandedByContext[tieExpansionContextKey]
         : preferredExpandedTieNo == null
           ? null
           : String(preferredExpandedTieNo);
-    const finalGames = useMemo(
-        () => (finalMatch?.matches ? [...finalMatch.matches].sort((a, b) => a.match_no - b.match_no) : []),
-        [finalMatch],
-    );
-    const finalGamesCompletedCount = useMemo(
-        () => finalGames.filter((game) => game.status === "completed").length,
-        [finalGames],
-    );
 
     if (loading) {
         return <section className="panel">Loading referee console...</section>;
@@ -1085,7 +1218,7 @@ export default function Referee() {
             <article className="panel" data-animate="true">
                 <div className="panel-head">
                     <h3>Referee Queue</h3>
-                    <p>Actionable matches segregated by court</p>
+                    <p>Actionable matches by court, with finals in same tabs</p>
                 </div>
                 <p className={`ref-status-line ${error ? "is-error" : "is-info"}`}>{statusSummary}</p>
 
@@ -1103,143 +1236,6 @@ export default function Referee() {
                         <h5>{medals.bronze_team ?? "TBD"}</h5>
                     </article>
                 </div>
-
-                {(medals.finalist1 || medals.finalist2 || finalMatch) && (
-                    <div className="lineup-box stack-sm">
-                        <p className="match-meta">Final Tie</p>
-                        <h5>
-                            Finalist 1: {medals.finalist1 ?? finalMatch?.team1 ?? "TBD"}{" "}
-                            <span className="muted-note">vs</span> Finalist 2: {medals.finalist2 ?? finalMatch?.team2 ?? "TBD"}
-                        </h5>
-                        <p className="match-meta">
-                            Status: {finalMatch?.status ?? (medals.finalist1 && medals.finalist2 ? "pending" : "waiting")}
-                        </p>
-
-                        {finalMatch ? (
-                            <>
-                                <p className="lineup">
-                                    Score: {finalMatch.team1_score} <span>vs</span> {finalMatch.team2_score}
-                                </p>
-                                <p className="match-meta">{finalMatch.winner_team ? `Winner: ${finalMatch.winner_team}` : "Winner: pending"}</p>
-                                <p className="match-meta">
-                                    Final games completed: {finalGamesCompletedCount}/{finalGames.length || 12}
-                                </p>
-
-                                <div className="stack-sm">
-                                    {finalGames.map((game) => {
-                                        const draft = getFinalGameDraft(game);
-                                        return (
-                                            <div key={game.id} className={`queue-item ${game.status === "completed" ? "tie-tone-2" : "tie-tone-1"}`}>
-                                                <div className="stack-sm">
-                                                    <div className="panel-head">
-                                                        <div>
-                                                            <p className="match-meta">
-                                                                Final Game #{game.match_no} • {game.discipline}
-                                                            </p>
-                                                            <h5>
-                                                                {finalMatch.team1} vs {finalMatch.team2}
-                                                            </h5>
-                                                        </div>
-                                                        <StatusPill status={game.status} />
-                                                    </div>
-
-                                                    <p className="lineup">
-                                                        {game.team1_lineup} <span>vs</span> {game.team2_lineup}
-                                                    </p>
-                                                    <p className="match-meta">
-                                                        Referee: {game.referee_name || "Not assigned"} • Score: {game.team1_score} - {game.team2_score}
-                                                    </p>
-
-                                                    {finalMatch.status !== "completed" && game.status !== "completed" && (
-                                                        <div className="stack-sm">
-                                                            <label htmlFor={`final-referee-${game.id}`}>Game referee</label>
-                                                            <div className="input-row">
-                                                                <input
-                                                                    id={`final-referee-${game.id}`}
-                                                                    value={draft.referee}
-                                                                    onChange={(event) =>
-                                                                        setFinalGameDrafts((prev) => ({
-                                                                            ...prev,
-                                                                            [game.id]: {
-                                                                                referee: event.target.value,
-                                                                                score1: prev[game.id]?.score1 ?? game.team1_score ?? 0,
-                                                                                score2: prev[game.id]?.score2 ?? game.team2_score ?? 0,
-                                                                            },
-                                                                        }))
-                                                                    }
-                                                                    placeholder="Enter referee name"
-                                                                />
-                                                                <button
-                                                                    className="btn btn-outline"
-                                                                    disabled={submitting}
-                                                                    onClick={() => handleAssignFinalGameReferee(game)}
-                                                                >
-                                                                    Assign
-                                                                </button>
-                                                            </div>
-
-                                                            <div className="pending-lineup-grid">
-                                                                <div className="stack-sm">
-                                                                    <label htmlFor={`final-score-team1-${game.id}`}>{finalMatch.team1} score</label>
-                                                                    <input
-                                                                        id={`final-score-team1-${game.id}`}
-                                                                        type="number"
-                                                                        min="0"
-                                                                        max="30"
-                                                                        value={draft.score1}
-                                                                        onChange={(event) =>
-                                                                            setFinalGameDrafts((prev) => ({
-                                                                                ...prev,
-                                                                                [game.id]: {
-                                                                                    referee: prev[game.id]?.referee ?? game.referee_name ?? "",
-                                                                                    score1: event.target.value,
-                                                                                    score2: prev[game.id]?.score2 ?? game.team2_score ?? 0,
-                                                                                },
-                                                                            }))
-                                                                        }
-                                                                    />
-                                                                </div>
-                                                                <div className="stack-sm">
-                                                                    <label htmlFor={`final-score-team2-${game.id}`}>{finalMatch.team2} score</label>
-                                                                    <input
-                                                                        id={`final-score-team2-${game.id}`}
-                                                                        type="number"
-                                                                        min="0"
-                                                                        max="30"
-                                                                        value={draft.score2}
-                                                                        onChange={(event) =>
-                                                                            setFinalGameDrafts((prev) => ({
-                                                                                ...prev,
-                                                                                [game.id]: {
-                                                                                    referee: prev[game.id]?.referee ?? game.referee_name ?? "",
-                                                                                    score1: prev[game.id]?.score1 ?? game.team1_score ?? 0,
-                                                                                    score2: event.target.value,
-                                                                                },
-                                                                            }))
-                                                                        }
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                            <button
-                                                                className="btn btn-primary"
-                                                                disabled={submitting || !game.referee_name}
-                                                                onClick={() => handleSaveFinalGameScore(game)}
-                                                            >
-                                                                Save Game Score
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </>
-                        ) : (
-                            <p className="muted-note">Final tie will be created automatically once all round-robin ties are completed.</p>
-                        )}
-                    </div>
-                )}
 
                 {recommendedNextMatch && (
                     <div className={`recommended-banner ${getTieToneClass(recommendedNextMatch.tie_no)} ${recommendedStartsNewTie ? "is-new-tie" : ""}`}>
@@ -1587,21 +1583,164 @@ export default function Referee() {
                         );
                     })}
 
-                    {queueMatches.length === 0 && (
+                    {finalMatch && finalGamesForStatus.length > 0 && (
+                        <section className="tie-accordion tie-tone-6">
+                            <div className="tie-accordion-head expanded">
+                                <span className="tie-accordion-title">
+                                    Final Tie • {finalMatch.team1} vs {finalMatch.team2}
+                                </span>
+                                <span className="tie-accordion-meta">
+                                    {finalGamesCompletedCount}/{finalGames.length || 12} completed
+                                </span>
+                                <span className="tie-accordion-arrow">•</span>
+                            </div>
+
+                            <div className="tie-accordion-body stack-sm">
+                                <p className="match-meta">
+                                    Status: {finalMatch.status} • Score: {finalMatch.team1_score} - {finalMatch.team2_score}
+                                </p>
+                                <p className="match-meta">
+                                    {finalMatch.team1}
+                                    {medalClassForTeam(finalMatch.team1, medals) ? (
+                                        <span className={`standing-badge ${medalClassForTeam(finalMatch.team1, medals)}`}>
+                                            {medalLabelFromClass(medalClassForTeam(finalMatch.team1, medals))}
+                                        </span>
+                                    ) : null}
+                                    {" vs "}
+                                    {finalMatch.team2}
+                                    {medalClassForTeam(finalMatch.team2, medals) ? (
+                                        <span className={`standing-badge ${medalClassForTeam(finalMatch.team2, medals)}`}>
+                                            {medalLabelFromClass(medalClassForTeam(finalMatch.team2, medals))}
+                                        </span>
+                                    ) : null}
+                                    {medals.bronze_team ? (
+                                        <>
+                                            {" • "}
+                                            Bronze: {medals.bronze_team}
+                                            <span className="standing-badge bronze">Bronze</span>
+                                        </>
+                                    ) : null}
+                                </p>
+
+                                {finalGamesForStatus.map((game) => {
+                                    const draft = getFinalGameDraft(game);
+                                    const finalScore1 = Math.max(0, Math.min(30, Number(draft.score1) || 0));
+                                    const finalScore2 = Math.max(0, Math.min(30, Number(draft.score2) || 0));
+                                    const canEditFinalScore =
+                                        finalMatch.status !== "completed" && game.status !== "completed" && Boolean(game.referee_name);
+
+                                    return (
+                                        <div key={`final-${game.id}`} className={`queue-item ${game.status === "completed" ? "tie-tone-2" : "tie-tone-6"}`}>
+                                            <div className="stack-sm">
+                                                <div className="panel-head">
+                                                    <div>
+                                                        <p className="match-meta">
+                                                            Final Game #{game.match_no} • {game.discipline}
+                                                        </p>
+                                                        <h5>
+                                                            {finalMatch.team1} vs {finalMatch.team2}
+                                                        </h5>
+                                                    </div>
+                                                    <StatusPill status={game.status} />
+                                                </div>
+
+                                                <p className="lineup">
+                                                    {game.team1_lineup} <span>vs</span> {game.team2_lineup}
+                                                </p>
+                                                <p className="match-meta">
+                                                    Referee: {game.referee_name || "Not assigned"} • Score: {game.team1_score} - {game.team2_score}
+                                                </p>
+
+                                                {finalMatch.status !== "completed" && game.status !== "completed" && !game.referee_name && (
+                                                    <div className="stack-sm">
+                                                        <label htmlFor={`final-referee-${game.id}`}>Game referee</label>
+                                                        <div className="input-row">
+                                                            <input
+                                                                id={`final-referee-${game.id}`}
+                                                                value={draft.referee}
+                                                                onChange={(event) =>
+                                                                    setFinalGameDrafts((prev) => ({
+                                                                        ...prev,
+                                                                        [game.id]: {
+                                                                            referee: event.target.value,
+                                                                            score1: prev[game.id]?.score1 ?? game.team1_score ?? 0,
+                                                                            score2: prev[game.id]?.score2 ?? game.team2_score ?? 0,
+                                                                        },
+                                                                    }))
+                                                                }
+                                                                placeholder="Enter referee name"
+                                                            />
+                                                            <button
+                                                                className="btn btn-outline"
+                                                                disabled={submitting}
+                                                                onClick={() => handleAssignFinalGameReferee(game)}
+                                                            >
+                                                                Assign
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {canEditFinalScore && (
+                                                    <div className="stack-md">
+                                                        <div className="score-grid">
+                                                            <div className="score-card">
+                                                                <h4>{finalMatch.team1}</h4>
+                                                                <p className="score-value">{finalScore1}</p>
+                                                                <div className="score-actions">
+                                                                    <button onClick={() => adjustFinalScore(game, 1, -1)}>-</button>
+                                                                    <button onClick={() => adjustFinalScore(game, 1, 1)}>+</button>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="score-card">
+                                                                <h4>{finalMatch.team2}</h4>
+                                                                <p className="score-value">{finalScore2}</p>
+                                                                <div className="score-actions">
+                                                                    <button onClick={() => adjustFinalScore(game, 2, -1)}>-</button>
+                                                                    <button onClick={() => adjustFinalScore(game, 2, 1)}>+</button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <button
+                                                            className="btn btn-primary"
+                                                            disabled={submitting}
+                                                            onClick={() => handleSaveFinalGameScore(game)}
+                                                        >
+                                                            Save Score
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {game.status === "completed" && (
+                                                    <p className="match-meta">
+                                                        Final score: {game.team1_score} - {game.team2_score}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                    )}
+
+                    {queueMatches.length === 0 && finalGamesForStatus.length === 0 && (
                         <div className="stack-sm">
                             <p className="muted-note">No matches found for this status/court filter.</p>
                             <div className="filters">
-                                {statusFilter !== "pending" && hasPendingOnCourt && (
+                                {statusFilter !== "pending" && (statusCountsOverall.pending ?? 0) > 0 && (
                                     <button className="chip" onClick={() => setStatusFilter("pending")}>
                                         Show pending
                                     </button>
                                 )}
-                                {statusFilter !== "live" && hasLiveOnCourt && (
+                                {statusFilter !== "live" && (statusCountsOverall.live ?? 0) > 0 && (
                                     <button className="chip" onClick={() => setStatusFilter("live")}>
                                         Show live
                                     </button>
                                 )}
-                                {statusFilter !== "completed" && hasCompletedOnCourt && (
+                                {statusFilter !== "completed" && (statusCountsOverall.completed ?? 0) > 0 && (
                                     <button className="chip" onClick={() => setStatusFilter("completed")}>
                                         Show completed
                                     </button>
@@ -1611,7 +1750,7 @@ export default function Referee() {
                     )}
                 </div>
 
-                {recommendedNextMatch ? null : (
+                {recommendedNextMatch || finalGamesForStatus.length > 0 ? null : (
                     <p className="muted-note">All matches completed for selected court.</p>
                 )}
 
@@ -1640,6 +1779,35 @@ export default function Referee() {
                                 Cancel
                             </button>
                             <button className="btn btn-primary" disabled={submitting} onClick={confirmDecrement}>
+                                Yes, Reduce
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {finalDecrementConfirm && (
+                <div className="modal-backdrop" onClick={closeFinalDecrementModal}>
+                    <div
+                        className="confirm-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="decrement-final-score-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <p className="eyebrow">Confirm Score Change</p>
+                        <h4 id="decrement-final-score-title">Reduce final game score?</h4>
+                        <p>
+                            Are you sure you want to reduce score from <strong>{finalDecrementConfirm.from}</strong> to{" "}
+                            <strong>{finalDecrementConfirm.to}</strong> for <strong>{finalDecrementTeamName}</strong> in Final Game{" "}
+                            <strong>#{finalDecrementConfirm.gameNo}</strong>?
+                        </p>
+                        <p className="muted-note">This updates the live final score immediately.</p>
+                        <div className="modal-actions">
+                            <button className="btn btn-outline" disabled={submitting} onClick={closeFinalDecrementModal}>
+                                Cancel
+                            </button>
+                            <button className="btn btn-primary" disabled={submitting} onClick={confirmFinalDecrement}>
                                 Yes, Reduce
                             </button>
                         </div>
