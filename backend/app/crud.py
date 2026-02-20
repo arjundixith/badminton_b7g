@@ -1161,10 +1161,9 @@ def build_post_finals_category_summary(db: Session) -> schemas.PostFinalsCategor
 
     total_matches_considered = len(tie_matches)
     for match in tie_matches:
-        side1_token, side2_token = _discipline_side_tokens(match.discipline)
+        slot_tokens = _discipline_slot_tokens(match.discipline)
         winner_side = match.winner_side or 0
 
-        winner_token = side1_token if winner_side == 1 else side2_token
         winner_lineup = match.team1_lineup if winner_side == 1 else match.team2_lineup
         winner_score_points = match.team1_score if winner_side == 1 else match.team2_score
         opponent_score_points = match.team2_score if winner_side == 1 else match.team1_score
@@ -1179,7 +1178,14 @@ def build_post_finals_category_summary(db: Session) -> schemas.PostFinalsCategor
             continue
 
         for player_index, player_name in enumerate(winner_players):
-            category = _category_for_player_on_side(winner_token, f"{player_index}::{player_name}", set_level_by_name)
+            if player_index >= len(slot_tokens):
+                continue
+            category = _category_for_slot_assignment(
+                slot_tokens[player_index],
+                player_name,
+                player_index,
+                set_level_by_name,
+            )
             if category not in wins_by_category:
                 continue
             wins_by_category[category][player_name] += 1
@@ -1199,10 +1205,9 @@ def build_post_finals_category_summary(db: Session) -> schemas.PostFinalsCategor
 
     for game in final_games:
         final = game.final_match
-        side1_token, side2_token = _discipline_side_tokens(game.discipline)
+        slot_tokens = _discipline_slot_tokens(game.discipline)
         winner_side = game.winner_side or 0
 
-        winner_token = side1_token if winner_side == 1 else side2_token
         winner_lineup = game.team1_lineup if winner_side == 1 else game.team2_lineup
         winner_score_points = game.team1_score if winner_side == 1 else game.team2_score
         opponent_score_points = game.team2_score if winner_side == 1 else game.team1_score
@@ -1217,7 +1222,14 @@ def build_post_finals_category_summary(db: Session) -> schemas.PostFinalsCategor
             continue
 
         for player_index, player_name in enumerate(winner_players):
-            category = _category_for_player_on_side(winner_token, f"{player_index}::{player_name}", set_level_by_name)
+            if player_index >= len(slot_tokens):
+                continue
+            category = _category_for_slot_assignment(
+                slot_tokens[player_index],
+                player_name,
+                player_index,
+                set_level_by_name,
+            )
             if category not in wins_by_category:
                 continue
             wins_by_category[category][player_name] += 1
