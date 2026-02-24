@@ -950,9 +950,9 @@ tbody tr:last-child td {
 }
 
 .queue {
-    max-height: 68vh;
-    overflow-y: auto;
-    padding-right: 4px;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
 }
 
 .queue-item {
