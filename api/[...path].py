@@ -18,3 +18,4 @@ async def app(scope: dict[str, Any], receive: ASGIReceive, send: ASGISend) -> No
             scope["path"] = path.removeprefix("/api")
 
     await fastapi_app(scope, receive, send)
+
