@@ -74,4 +74,7 @@ app.include_router(matches.router, prefix="/matches")
 app.include_router(referee.router, prefix="/referee")
 app.include_router(schedule.router, prefix="/schedule")
 app.include_router(viewer.router, prefix="/viewer")
+# Vercel can present a shifted path in serverless routing for nested API paths.
+# Register viewer endpoints without prefix as a compatibility fallback.
+app.include_router(viewer.router)
 app.include_router(finals.router, prefix="/finals")
