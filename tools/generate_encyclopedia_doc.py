@@ -12,6 +12,8 @@ DOCS_DIR = ROOT / "docs"
 DOCS_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_HTML = DOCS_DIR / "B7G_Project_Encyclopedia.html"
 OUTPUT_DOCX = DOCS_DIR / "B7G_Project_Encyclopedia.docx"
+OUTPUT_APPENDIX_HTML = DOCS_DIR / "B7G_Project_Encyclopedia_Appendix.html"
+OUTPUT_APPENDIX_DOCX = DOCS_DIR / "B7G_Project_Encyclopedia_Appendix.docx"
 
 CORE_FILES = [
     "README.md",
@@ -800,6 +802,28 @@ html_parts.append(
 )
 html_parts.append("</div></body></html>")
 
-OUTPUT_HTML.write_text("\n".join(html_parts), encoding="utf-8")
-print(f"HTML generated: {OUTPUT_HTML}")
-print(f"Target DOCX path: {OUTPUT_DOCX}")
+appendix_html = "\n".join(html_parts)
+OUTPUT_APPENDIX_HTML.write_text(appendix_html, encoding="utf-8")
+
+appendix_marker = "<h2 class='section' id='s8'>8. Code Encyclopedia Appendix (Line-by-Line)</h2>"
+if appendix_marker in appendix_html:
+    main_prefix, _ = appendix_html.split(appendix_marker, 1)
+else:
+    main_prefix = appendix_html
+
+main_html = (
+    main_prefix
+    + appendix_marker
+    + "<div class='note'><strong>This is the compact handbook view.</strong> "
+      f"The full line-by-line appendix is on a separate page: "
+      f"<a href='{html.escape(OUTPUT_APPENDIX_HTML.name)}'>{html.escape(OUTPUT_APPENDIX_HTML.name)}</a>.</div>"
+    + f"<div class='footer'>Generated from source at commit <code>{html.escape(commit)}</code> on branch "
+      f"<code>{html.escape(branch)}</code> ({html.escape(generated)}).</div>"
+    + "</div></body></html>"
+)
+OUTPUT_HTML.write_text(main_html, encoding="utf-8")
+
+print(f"Main HTML generated: {OUTPUT_HTML}")
+print(f"Appendix HTML generated: {OUTPUT_APPENDIX_HTML}")
+print(f"Main DOCX path: {OUTPUT_DOCX}")
+print(f"Appendix DOCX path: {OUTPUT_APPENDIX_DOCX}")
