@@ -122,8 +122,8 @@ tr:nth-child(even) td { background: #f8fafc; }
   <h1>B7G Badminton Project Encyclopedia</h1>
   <h2>Industry-Standard Technical Handbook - Setup, Codebase, Operations, and Deployment</h2>
   <p><strong>Repository:</strong> badminton-app</p>
-  <p><strong>Branch:</strong> main | <strong>Commit:</strong> 7eedb16</p>
-  <p><strong>Generated:</strong> 2026-02-24 18:33:41</p>
+  <p><strong>Branch:</strong> main | <strong>Commit:</strong> 0230e86</p>
+  <p><strong>Generated:</strong> 2026-02-24 18:38:47</p>
   <p><strong>Audience:</strong> New and experienced engineers onboarding to this project.</p>
 </div>
 <div class='container'>
@@ -151,16 +151,21 @@ tr:nth-child(even) td { background: #f8fafc; }
 </div>
 <h2 class='section' id='s2'>2. Prerequisites and Local Installation</h2>
 <h3>2.1 Tools Required</h3>
-<ul><li>Python 3.11+ (backend)</li><li>Node.js 18+ and npm (frontend)</li><li>Git</li><li>Optional: Postgres (for production-like local testing)</li></ul>
+<ul><li>Python 3.11+ (backend)</li><li>Node.js 18+ and npm (frontend)</li><li>Git</li><li>PostgreSQL 14+ (required for local runtime)</li><li>pgAdmin 4 or DBeaver (recommended local DB GUI)</li></ul>
 <h3>2.2 Clone and Install</h3>
 <pre><code>git clone &lt;your-repo-url&gt;
 cd badminton-app
+
+# Local Postgres (Homebrew example)
+brew services start postgresql@16
+createdb -h localhost -U &lt;your-macos-username&gt; badminton_b7g || true
 
 # Backend
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
+export DATABASE_URL=postgresql://&lt;your-macos-username&gt;@localhost:5432/badminton_b7g
 python3 seed.py
 uvicorn app.main:app --reload
 
@@ -171,7 +176,9 @@ cp .env.example .env
 # set VITE_API_URL=http://localhost:8000
 npm run dev</code></pre>
 <div class='success'><strong>Result:</strong> frontend runs on <code>http://localhost:5173</code>, backend on <code>http://localhost:8000</code>.</div>
-<h3>2.3 Seed Modes</h3>
+<h3>2.3 pgAdmin Setup (Local DB UI)</h3>
+<ol><li>Install pgAdmin: <code>brew install --cask pgadmin4</code></li><li>Create server with Name <code>Badminton Local PG</code> (any label).</li><li>Use Host <code>localhost</code>, Port <code>5432</code>, Maintenance DB <code>postgres</code>.</li><li>Username: macOS user for Homebrew Postgres (for example <code>arjundixithts</code>) or <code>postgres</code> for Docker Postgres.</li><li>Password: your configured local role password (Docker default is <code>postgres</code>).</li></ol>
+<h3>2.4 Seed Modes</h3>
 <ul><li><code>python3 seed.py</code>: fresh tournament start (same teams/players, all pending).</li><li><code>python3 seed.py --demo-progress</code>: sample live/completed demo states.</li></ul>
 <h2 class='section' id='s3'>3. How the System Works End-to-End</h2>
 <h3>3.1 Runtime Request Flow</h3>
@@ -179,7 +186,7 @@ npm run dev</code></pre>
 <h3>3.2 Core Rule Enforcement</h3>
 <ul><li>Referee assignment required before scoring.</li><li>Lineup confirmation required before scoring.</li><li>Badminton scoring: 21 with deuce, cap 30.</li><li>Game #13 only appears/starts when tie is 6-6.</li><li>Final tie appears only after league completion.</li></ul>
 <h2 class='section' id='s4'>4. Backend Deep Dive (FastAPI + SQLAlchemy)</h2>
-<p class='small'>Backend files analyzed: 18. Total project lines analyzed: 8122.</p>
+<p class='small'>Backend files analyzed: 18. Total project lines analyzed: 8145.</p>
 <h3>4.1 Backend Responsibilities</h3>
 <ul><li>Define schema and constraints (models).</li><li>Expose API contracts (schemas, serializers, routes).</li><li>Enforce tournament business rules (crud).</li><li>Initialize default tournament data (seed + startup auto-seed).</li></ul>
 <h3>4.2 Backend File Summary</h3>
@@ -237,7 +244,7 @@ npm run dev</code></pre>
 <ul><li><code>/api/health</code> returns JSON status ok.</li><li>Viewer loads without JSON parse errors.</li><li>Referee can assign and score a match end-to-end.</li><li>Standings update after completed tie games.</li><li>Final appears only after all 10 ties completed.</li></ul>
 <h2 class='section' id='s8'>8. Code Encyclopedia Appendix (Line-by-Line)</h2>
 <p>This appendix presents every line for core project files with a concise line-level explanation to help new engineers learn code incrementally and systematically.</p>
-<div class='file-title'><strong>README.md</strong> &nbsp; | &nbsp; Lines: 168</div>
+<div class='file-title'><strong>README.md</strong> &nbsp; | &nbsp; Lines: 191</div>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code># Badminton App</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
 <tr><td>2</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
@@ -263,7 +270,7 @@ npm run dev</code></pre>
 <tr><td>22</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
 <tr><td>23</td><td><code>- `/Users/arjundixithts/Downloads/badminton-app/docs/PROJECT_STEP_BY_STEP.md`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
 <tr><td>24</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>25</td><td><code>## Backend Setup (Local Postgres)</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
+<tr><td>25</td><td><code>## Backend Setup (Local Postgres Required)</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
 <tr><td>26</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
 <tr><td>27</td><td><code>```bash</code></td><td>Markdown code fence boundary.</td></tr>
 <tr><td>28</td><td><code>cd /Users/arjundixithts/Downloads/badminton-app</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
@@ -280,133 +287,156 @@ npm run dev</code></pre>
 <tr><td>39</td><td><code>Backend URL: `http://localhost:8000`</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
 <tr><td>40</td><td><code>Swagger docs: `http://localhost:8000/docs`</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
 <tr><td>41</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>42</td><td><code>Local backend defaults to:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>42</td><td><code>Local backend requires PostgreSQL. Set `DATABASE_URL` explicitly:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
 <tr><td>43</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>44</td><td><code>- `postgresql://postgres:postgres@localhost:5432/badminton_b7g`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>45</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>46</td><td><code>Optional override:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>47</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>48</td><td><code>- set `DATABASE_URL` (see `/Users/arjundixithts/Downloads/badminton-app/backend/.env.example`)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>49</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>50</td><td><code>Key APIs:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>51</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>52</td><td><code>- `GET /health`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>53</td><td><code>- `GET /viewer/dashboard`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>54</td><td><code>- `GET /viewer/standings`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>55</td><td><code>- `GET /ties/`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>56</td><td><code>- `GET /matches/?stage=tie&amp;status=pending|live|completed`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>57</td><td><code>- `POST /referee/assign?match_id=&lt;id&gt;&amp;name=&lt;referee&gt;`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>58</td><td><code>- `POST /matches/score/{match_id}`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>59</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>60</td><td><code>## Frontend Setup</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
-<tr><td>61</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>62</td><td><code>```bash</code></td><td>Markdown code fence boundary.</td></tr>
-<tr><td>63</td><td><code>cd /Users/arjundixithts/Downloads/badminton-app/frontend</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>64</td><td><code>npm install</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>65</td><td><code>cp .env.example .env</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>66</td><td><code>npm run dev</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>67</td><td><code>```</code></td><td>Markdown code fence boundary.</td></tr>
-<tr><td>68</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>69</td><td><code>Frontend URL: `http://localhost:5173`</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>70</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>71</td><td><code>Set backend URL in `/Users/arjundixithts/Downloads/badminton-app/frontend/.env`:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>44</td><td><code>- Homebrew/Postgres local user: `postgresql://&lt;your-macos-username&gt;@localhost:5432/badminton_b7g`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>45</td><td><code>- Docker compose postgres user: `postgresql://postgres:postgres@localhost:5432/badminton_b7g`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>46</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>47</td><td><code>Reference env template:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>48</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>49</td><td><code>- `/Users/arjundixithts/Downloads/badminton-app/backend/.env.example`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>50</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>51</td><td><code>## pgAdmin (Recommended Local DB UI)</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
+<tr><td>52</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>53</td><td><code>Install:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>54</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>55</td><td><code>```bash</code></td><td>Markdown code fence boundary.</td></tr>
+<tr><td>56</td><td><code>brew install --cask pgadmin4</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>57</td><td><code>```</code></td><td>Markdown code fence boundary.</td></tr>
+<tr><td>58</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>59</td><td><code>Connection values for Homebrew Postgres:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>60</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>61</td><td><code>- Server Name: `Badminton Local PG` (any label)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>62</td><td><code>- Host: `localhost`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>63</td><td><code>- Port: `5432`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>64</td><td><code>- Maintenance DB: `postgres`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>65</td><td><code>- Username: your macOS user (example: `arjundixithts`)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>66</td><td><code>- Password: as configured in your local Postgres role</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>67</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>68</td><td><code>Connection values for Docker Postgres:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>69</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>70</td><td><code>- Username: `postgres`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>71</td><td><code>- Password: `postgres`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
 <tr><td>72</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>73</td><td><code>```bash</code></td><td>Markdown code fence boundary.</td></tr>
-<tr><td>74</td><td><code>VITE_API_URL=http://localhost:8000</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>75</td><td><code>```</code></td><td>Markdown code fence boundary.</td></tr>
-<tr><td>76</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>77</td><td><code>## Seed Data</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
-<tr><td>78</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>79</td><td><code>`python3 seed.py` resets the DB and seeds:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>80</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>81</td><td><code>- 5 teams</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>82</td><td><code>- full player rosters (Set-1 to Set-5)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>83</td><td><code>- round-robin tie fixtures and tie matches</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>84</td><td><code>- all ties in fresh/pending state</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>85</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>86</td><td><code>For demo live/completed sample state, use:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>87</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>88</td><td><code>```bash</code></td><td>Markdown code fence boundary.</td></tr>
-<tr><td>89</td><td><code>python3 seed.py --demo-progress</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>73</td><td><code>Key APIs:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>74</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>75</td><td><code>- `GET /health`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>76</td><td><code>- `GET /viewer/dashboard`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>77</td><td><code>- `GET /viewer/standings`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>78</td><td><code>- `GET /ties/`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>79</td><td><code>- `GET /matches/?stage=tie&amp;status=pending|live|completed`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>80</td><td><code>- `POST /referee/assign?match_id=&lt;id&gt;&amp;name=&lt;referee&gt;`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>81</td><td><code>- `POST /matches/score/{match_id}`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>82</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>83</td><td><code>## Frontend Setup</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
+<tr><td>84</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>85</td><td><code>```bash</code></td><td>Markdown code fence boundary.</td></tr>
+<tr><td>86</td><td><code>cd /Users/arjundixithts/Downloads/badminton-app/frontend</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>87</td><td><code>npm install</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>88</td><td><code>cp .env.example .env</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>89</td><td><code>npm run dev</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
 <tr><td>90</td><td><code>```</code></td><td>Markdown code fence boundary.</td></tr>
 <tr><td>91</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>92</td><td><code>## Free Deployment (Recommended)</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
+<tr><td>92</td><td><code>Frontend URL: `http://localhost:5173`</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
 <tr><td>93</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>94</td><td><code>Use:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>94</td><td><code>Set backend URL in `/Users/arjundixithts/Downloads/badminton-app/frontend/.env`:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
 <tr><td>95</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>96</td><td><code>- Frontend: Vercel (free)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>97</td><td><code>- Backend: Render web service (free)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>98</td><td><code>- Database: Neon Postgres (free tier)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>96</td><td><code>```bash</code></td><td>Markdown code fence boundary.</td></tr>
+<tr><td>97</td><td><code>VITE_API_URL=http://localhost:8000</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>98</td><td><code>```</code></td><td>Markdown code fence boundary.</td></tr>
 <tr><td>99</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>100</td><td><code>### 1. Deploy backend to Render</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
+<tr><td>100</td><td><code>## Seed Data</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
 <tr><td>101</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>102</td><td><code>1. Push this repo to GitHub.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>103</td><td><code>2. In Render, create a new **Blueprint** and select your repo.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>104</td><td><code>3. Render uses `/Users/arjundixithts/Downloads/badminton-app/render.yaml` automatically.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>105</td><td><code>4. Set backend environment variables in Render:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>106</td><td><code>   - `DATABASE_URL` = your Neon connection string (`postgresql://...`)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>107</td><td><code>   - `CORS_ORIGINS` = your Vercel frontend URL (for example `https://your-app.vercel.app`)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>108</td><td><code>   - `AUTO_SEED_ON_EMPTY=true` (already defaulted in `render.yaml`)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>109</td><td><code>   - optional: `AUTO_SEED_FORCE_RESET=true` (force reset to fresh tournament on every startup; keep `false` for normal use)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>102</td><td><code>`python3 seed.py` resets the DB and seeds:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>103</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>104</td><td><code>- 5 teams</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>105</td><td><code>- full player rosters (Set-1 to Set-5)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>106</td><td><code>- round-robin tie fixtures and tie matches</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>107</td><td><code>- all ties in fresh/pending state</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>108</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>109</td><td><code>For demo live/completed sample state, use:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
 <tr><td>110</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>111</td><td><code>Notes:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>112</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>113</td><td><code>- On first boot, if DB is empty, backend auto-seeds a **fresh tournament start** (same team names and player names, all ties fresh/pending).</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>114</td><td><code>- `DATABASE_URL` must be set in cloud environments.</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>115</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>116</td><td><code>### 2. Deploy frontend to Vercel</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
-<tr><td>117</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>118</td><td><code>1. Import the same repo in Vercel.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>119</td><td><code>2. Vercel will use `/Users/arjundixithts/Downloads/badminton-app/vercel.json`.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>120</td><td><code>3. Add environment variable in Vercel:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>121</td><td><code>   - `VITE_API_URL=https://&lt;your-render-service&gt;.onrender.com`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>122</td><td><code>4. Redeploy frontend.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>123</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>124</td><td><code>### 3. Verify</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
-<tr><td>125</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>126</td><td><code>1. Open frontend URL.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>127</td><td><code>2. Check `/viewer`, `/referee_b7g/viewer`, and `/referee_b7g/referee`.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>128</td><td><code>3. Confirm backend health at `https://&lt;your-render-service&gt;.onrender.com/health`.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>129</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>130</td><td><code>## Single Deployment On Vercel (Free)</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
-<tr><td>131</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>132</td><td><code>You can deploy frontend + backend in one Vercel project:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>111</td><td><code>```bash</code></td><td>Markdown code fence boundary.</td></tr>
+<tr><td>112</td><td><code>python3 seed.py --demo-progress</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>113</td><td><code>```</code></td><td>Markdown code fence boundary.</td></tr>
+<tr><td>114</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>115</td><td><code>## Free Deployment (Recommended)</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
+<tr><td>116</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>117</td><td><code>Use:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>118</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>119</td><td><code>- Frontend: Vercel (free)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>120</td><td><code>- Backend: Render web service (free)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>121</td><td><code>- Database: Neon Postgres (free tier)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>122</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>123</td><td><code>### 1. Deploy backend to Render</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
+<tr><td>124</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>125</td><td><code>1. Push this repo to GitHub.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>126</td><td><code>2. In Render, create a new **Blueprint** and select your repo.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>127</td><td><code>3. Render uses `/Users/arjundixithts/Downloads/badminton-app/render.yaml` automatically.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>128</td><td><code>4. Set backend environment variables in Render:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>129</td><td><code>   - `DATABASE_URL` = your Neon connection string (`postgresql://...`)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>130</td><td><code>   - `CORS_ORIGINS` = your Vercel frontend URL (for example `https://your-app.vercel.app`)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>131</td><td><code>   - `AUTO_SEED_ON_EMPTY=true` (already defaulted in `render.yaml`)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>132</td><td><code>   - optional: `AUTO_SEED_FORCE_RESET=true` (force reset to fresh tournament on every startup; keep `false` for normal use)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
 <tr><td>133</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>134</td><td><code>- Frontend static build from `frontend/`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>135</td><td><code>- FastAPI backend from `/api/index.py`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>136</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>137</td><td><code>Steps:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>134</td><td><code>Notes:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>135</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>136</td><td><code>- On first boot, if DB is empty, backend auto-seeds a **fresh tournament start** (same team names and player names, all ties fresh/pending).</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>137</td><td><code>- `DATABASE_URL` must be set in cloud environments.</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
 <tr><td>138</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>139</td><td><code>1. In Vercel, import this repo as one project.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>140</td><td><code>2. Keep build settings from `/Users/arjundixithts/Downloads/badminton-app/vercel.json`.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>141</td><td><code>3. Add environment variables in Vercel project:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>142</td><td><code>   - `DATABASE_URL=postgresql://...` (Neon free DB URL)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>143</td><td><code>   - `AUTO_SEED_ON_EMPTY=true`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>144</td><td><code>   - `AUTO_SEED_FORCE_RESET=false`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>145</td><td><code>   - `CORS_ORIGINS=https://&lt;your-vercel-domain&gt;`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>146</td><td><code>   - `VITE_API_URL=/api`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>147</td><td><code>4. Deploy.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>139</td><td><code>### 2. Deploy frontend to Vercel</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
+<tr><td>140</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>141</td><td><code>1. Import the same repo in Vercel.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>142</td><td><code>2. Vercel will use `/Users/arjundixithts/Downloads/badminton-app/vercel.json`.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>143</td><td><code>3. Add environment variable in Vercel:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>144</td><td><code>   - `VITE_API_URL=https://&lt;your-render-service&gt;.onrender.com`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>145</td><td><code>4. Redeploy frontend.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>146</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>147</td><td><code>### 3. Verify</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
 <tr><td>148</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>149</td><td><code>URLs after deploy:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>150</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>151</td><td><code>- Frontend: `https://&lt;your-vercel-domain&gt;/`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>152</td><td><code>- Backend health: `https://&lt;your-vercel-domain&gt;/api/health`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>153</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>154</td><td><code>Notes:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>155</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>156</td><td><code>- Use Postgres (`DATABASE_URL`) for persistence.</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>157</td><td><code>- On first start with empty DB, app auto-seeds a fresh tournament (same teams/players, all ties pending).</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
-<tr><td>158</td><td><code>- `AUTO_SEED_FORCE_RESET=true` can be used for a one-time full reset to your default tournament data, then set it back to `false`.</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>149</td><td><code>1. Open frontend URL.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>150</td><td><code>2. Check `/viewer`, `/referee_b7g/viewer`, and `/referee_b7g/referee`.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>151</td><td><code>3. Confirm backend health at `https://&lt;your-render-service&gt;.onrender.com/health`.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>152</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>153</td><td><code>## Single Deployment On Vercel (Free)</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
+<tr><td>154</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>155</td><td><code>You can deploy frontend + backend in one Vercel project:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>156</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>157</td><td><code>- Frontend static build from `frontend/`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>158</td><td><code>- FastAPI backend from `/api/index.py`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
 <tr><td>159</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>160</td><td><code>## Quality Commands</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
+<tr><td>160</td><td><code>Steps:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
 <tr><td>161</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>162</td><td><code>```bash</code></td><td>Markdown code fence boundary.</td></tr>
-<tr><td>163</td><td><code>cd /Users/arjundixithts/Downloads/badminton-app/backend</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>164</td><td><code>python3 -m compileall app tests</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>165</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
-<tr><td>166</td><td><code>cd /Users/arjundixithts/Downloads/badminton-app/frontend</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>167</td><td><code>npm run build</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
-<tr><td>168</td><td><code>```</code></td><td>Markdown code fence boundary.</td></tr>
+<tr><td>162</td><td><code>1. In Vercel, import this repo as one project.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>163</td><td><code>2. Keep build settings from `/Users/arjundixithts/Downloads/badminton-app/vercel.json`.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>164</td><td><code>3. Add environment variables in Vercel project:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>165</td><td><code>   - `DATABASE_URL=postgresql://...` (Neon free DB URL)</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>166</td><td><code>   - `AUTO_SEED_ON_EMPTY=true`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>167</td><td><code>   - `AUTO_SEED_FORCE_RESET=false`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>168</td><td><code>   - `CORS_ORIGINS=https://&lt;your-vercel-domain&gt;`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>169</td><td><code>   - `VITE_API_URL=/api`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>170</td><td><code>4. Deploy.</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>171</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>172</td><td><code>URLs after deploy:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>173</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>174</td><td><code>- Frontend: `https://&lt;your-vercel-domain&gt;/`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>175</td><td><code>- Backend health: `https://&lt;your-vercel-domain&gt;/api/health`</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>176</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>177</td><td><code>Notes:</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>178</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>179</td><td><code>- Use Postgres (`DATABASE_URL`) for persistence.</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>180</td><td><code>- On first start with empty DB, app auto-seeds a fresh tournament (same teams/players, all ties pending).</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>181</td><td><code>- `AUTO_SEED_FORCE_RESET=true` can be used for a one-time full reset to your default tournament data, then set it back to `false`.</code></td><td>Markdown list item used to enumerate concepts or steps.</td></tr>
+<tr><td>182</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>183</td><td><code>## Quality Commands</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
+<tr><td>184</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>185</td><td><code>```bash</code></td><td>Markdown code fence boundary.</td></tr>
+<tr><td>186</td><td><code>cd /Users/arjundixithts/Downloads/badminton-app/backend</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>187</td><td><code>python3 -m compileall app tests</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>188</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
+<tr><td>189</td><td><code>cd /Users/arjundixithts/Downloads/badminton-app/frontend</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>190</td><td><code>npm run build</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
+<tr><td>191</td><td><code>```</code></td><td>Markdown code fence boundary.</td></tr>
 </table>
 <div class='file-title'><strong>Makefile</strong> &nbsp; | &nbsp; Lines: 13</div>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
@@ -8496,5 +8526,5 @@ npm run dev</code></pre>
 <tr><td>1343</td><td><code>    }</code></td><td>CSS selector block closing.</td></tr>
 <tr><td>1344</td><td><code>}</code></td><td>CSS selector block closing.</td></tr>
 </table>
-<div class='footer'>Generated from source at commit <code>7eedb16</code> on branch <code>main</code> (2026-02-24 18:33:41).</div>
+<div class='footer'>Generated from source at commit <code>0230e86</code> on branch <code>main</code> (2026-02-24 18:38:47).</div>
 </div></body></html>

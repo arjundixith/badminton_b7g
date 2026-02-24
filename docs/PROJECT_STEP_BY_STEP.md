@@ -25,6 +25,40 @@ Core tournament flow:
 - Database: Postgres (local + cloud). SQLite is used only in backend tests.
 - Deployment: single-project Vercel setup (frontend + backend API under `/api`)
 
+## 2.1 Local Database Requirement (Important)
+
+PostgreSQL is required for local runtime parity with production.
+
+- required local DB: Postgres (`badminton_b7g`)
+- SQLite is used only inside backend tests
+- set `DATABASE_URL` before starting backend
+
+Examples:
+
+- Homebrew Postgres: `postgresql://<your-macos-username>@localhost:5432/badminton_b7g`
+- Docker Postgres: `postgresql://postgres:postgres@localhost:5432/badminton_b7g`
+
+## 2.2 pgAdmin Setup (Recommended GUI)
+
+Install pgAdmin 4:
+
+```bash
+brew install --cask pgadmin4
+```
+
+Create server in pgAdmin:
+
+- Name: `Badminton Local PG` (any value)
+- Host: `localhost`
+- Port: `5432`
+- Maintenance DB: `postgres`
+- Username:
+  - Homebrew install: your macOS username (for this machine: `arjundixithts`)
+  - Docker install: `postgres`
+- Password:
+  - Homebrew: your configured role password (or blank if your role allows local trust)
+  - Docker: `postgres`
+
 ## 3. Repository Structure
 
 - `backend/app/main.py`: FastAPI app startup, CORS, auto-seed, router wiring

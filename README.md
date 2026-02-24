@@ -22,7 +22,7 @@ For a complete step-by-step explanation of architecture, data flow, rules, APIs,
 
 - `/Users/arjundixithts/Downloads/badminton-app/docs/PROJECT_STEP_BY_STEP.md`
 
-## Backend Setup (Local Postgres)
+## Backend Setup (Local Postgres Required)
 
 ```bash
 cd /Users/arjundixithts/Downloads/badminton-app
@@ -39,13 +39,36 @@ uvicorn app.main:app --reload
 Backend URL: `http://localhost:8000`
 Swagger docs: `http://localhost:8000/docs`
 
-Local backend defaults to:
+Local backend requires PostgreSQL. Set `DATABASE_URL` explicitly:
 
-- `postgresql://postgres:postgres@localhost:5432/badminton_b7g`
+- Homebrew/Postgres local user: `postgresql://<your-macos-username>@localhost:5432/badminton_b7g`
+- Docker compose postgres user: `postgresql://postgres:postgres@localhost:5432/badminton_b7g`
 
-Optional override:
+Reference env template:
 
-- set `DATABASE_URL` (see `/Users/arjundixithts/Downloads/badminton-app/backend/.env.example`)
+- `/Users/arjundixithts/Downloads/badminton-app/backend/.env.example`
+
+## pgAdmin (Recommended Local DB UI)
+
+Install:
+
+```bash
+brew install --cask pgadmin4
+```
+
+Connection values for Homebrew Postgres:
+
+- Server Name: `Badminton Local PG` (any label)
+- Host: `localhost`
+- Port: `5432`
+- Maintenance DB: `postgres`
+- Username: your macOS user (example: `arjundixithts`)
+- Password: as configured in your local Postgres role
+
+Connection values for Docker Postgres:
+
+- Username: `postgres`
+- Password: `postgres`
 
 Key APIs:
 

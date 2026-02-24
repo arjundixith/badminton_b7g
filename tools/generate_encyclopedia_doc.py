@@ -399,18 +399,22 @@ html_parts.append("</div>")
 html_parts.append("<h2 class='section' id='s2'>2. Prerequisites and Local Installation</h2>")
 html_parts.append("<h3>2.1 Tools Required</h3>")
 html_parts.append(
-    "<ul><li>Python 3.11+ (backend)</li><li>Node.js 18+ and npm (frontend)</li><li>Git</li><li>Optional: Postgres (for production-like local testing)</li></ul>"
+    "<ul><li>Python 3.11+ (backend)</li><li>Node.js 18+ and npm (frontend)</li><li>Git</li><li>PostgreSQL 14+ (required for local runtime)</li><li>pgAdmin 4 or DBeaver (recommended local DB GUI)</li></ul>"
 )
 html_parts.append("<h3>2.2 Clone and Install</h3>")
 html_parts.append(
     code_block(
         "git clone <your-repo-url>\n"
         "cd badminton-app\n\n"
+        "# Local Postgres (Homebrew example)\n"
+        "brew services start postgresql@16\n"
+        "createdb -h localhost -U <your-macos-username> badminton_b7g || true\n\n"
         "# Backend\n"
         "cd backend\n"
         "python3 -m venv .venv\n"
         "source .venv/bin/activate\n"
         "pip install -r requirements-dev.txt\n"
+        "export DATABASE_URL=postgresql://<your-macos-username>@localhost:5432/badminton_b7g\n"
         "python3 seed.py\n"
         "uvicorn app.main:app --reload\n\n"
         "# Frontend (new terminal)\n"
@@ -423,7 +427,18 @@ html_parts.append(
 )
 html_parts.append("<div class='success'><strong>Result:</strong> frontend runs on <code>http://localhost:5173</code>, backend on <code>http://localhost:8000</code>.</div>")
 
-html_parts.append("<h3>2.3 Seed Modes</h3>")
+html_parts.append("<h3>2.3 pgAdmin Setup (Local DB UI)</h3>")
+html_parts.append(
+    "<ol>"
+    "<li>Install pgAdmin: <code>brew install --cask pgadmin4</code></li>"
+    "<li>Create server with Name <code>Badminton Local PG</code> (any label).</li>"
+    "<li>Use Host <code>localhost</code>, Port <code>5432</code>, Maintenance DB <code>postgres</code>.</li>"
+    "<li>Username: macOS user for Homebrew Postgres (for example <code>arjundixithts</code>) or <code>postgres</code> for Docker Postgres.</li>"
+    "<li>Password: your configured local role password (Docker default is <code>postgres</code>).</li>"
+    "</ol>"
+)
+
+html_parts.append("<h3>2.4 Seed Modes</h3>")
 html_parts.append(
     "<ul>"
     "<li><code>python3 seed.py</code>: fresh tournament start (same teams/players, all pending).</li>"
