@@ -16,6 +16,12 @@ A full-stack badminton tournament app for two user roles:
 - `/Users/arjundixithts/Downloads/badminton-app/backend`: FastAPI service, SQLAlchemy models, seed data, tests
 - `/Users/arjundixithts/Downloads/badminton-app/frontend`: React + Vite web app
 
+## Full Project Walkthrough
+
+For a complete step-by-step explanation of architecture, data flow, rules, APIs, frontend behavior, finals logic, and deployment, read:
+
+- `/Users/arjundixithts/Downloads/badminton-app/docs/PROJECT_STEP_BY_STEP.md`
+
 ## Backend Setup
 
 ```bash
