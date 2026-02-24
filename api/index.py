@@ -1,5 +1,6 @@
 from collections.abc import Awaitable, Callable
 from typing import Any
+from urllib.parse import parse_qsl, urlencode
 
 from backend.app.main import app as fastapi_app
 
@@ -20,6 +21,27 @@ def _join_paths(left: str, right: str) -> str:
 
 
 def _normalize_api_path(scope: dict[str, Any]) -> dict[str, Any]:
+    query_string = scope.get("query_string", b"")
+    query_pairs = parse_qsl(
+        query_string.decode("utf-8", errors="ignore"),
+        keep_blank_values=True,
+    )
+    forwarded_path: str | None = None
+    forwarded_query: list[tuple[str, str]] = []
+
+    for key, value in query_pairs:
+        if key == "__path" and forwarded_path is None:
+            forwarded_path = "/" + value.lstrip("/")
+            continue
+        forwarded_query.append((key, value))
+
+    if forwarded_path:
+        updated = dict(scope)
+        updated["path"] = forwarded_path
+        updated["root_path"] = ""
+        updated["query_string"] = urlencode(forwarded_query, doseq=True).encode("utf-8")
+        return updated
+
     path = str(scope.get("path", "") or "")
     root_path = str(scope.get("root_path", "") or "")
     raw_path = scope.get("raw_path")
