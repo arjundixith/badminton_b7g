@@ -22,9 +22,12 @@ For a complete step-by-step explanation of architecture, data flow, rules, APIs,
 
 - `/Users/arjundixithts/Downloads/badminton-app/docs/PROJECT_STEP_BY_STEP.md`
 
-## Backend Setup
+## Backend Setup (Local Postgres)
 
 ```bash
+cd /Users/arjundixithts/Downloads/badminton-app
+docker compose up -d postgres
+
 cd /Users/arjundixithts/Downloads/badminton-app/backend
 python3 -m venv .venv
 source .venv/bin/activate
@@ -35,6 +38,14 @@ uvicorn app.main:app --reload
 
 Backend URL: `http://localhost:8000`
 Swagger docs: `http://localhost:8000/docs`
+
+Local backend defaults to:
+
+- `postgresql://postgres:postgres@localhost:5432/badminton_b7g`
+
+Optional override:
+
+- set `DATABASE_URL` (see `/Users/arjundixithts/Downloads/badminton-app/backend/.env.example`)
 
 Key APIs:
 
@@ -84,7 +95,7 @@ Use:
 
 - Frontend: Vercel (free)
 - Backend: Render web service (free)
-- Database: Neon Postgres (free tier) or fallback SQLite
+- Database: Neon Postgres (free tier)
 
 ### 1. Deploy backend to Render
 
@@ -100,7 +111,7 @@ Use:
 Notes:
 
 - On first boot, if DB is empty, backend auto-seeds a **fresh tournament start** (same team names and player names, all ties fresh/pending).
-- If `DATABASE_URL` is not set, backend falls back to SQLite (not persistent on free cloud restarts).
+- `DATABASE_URL` must be set in cloud environments.
 
 ### 2. Deploy frontend to Vercel
 
@@ -142,7 +153,7 @@ URLs after deploy:
 
 Notes:
 
-- SQLite is not durable on Vercel serverless, so use Postgres (`DATABASE_URL`).
+- Use Postgres (`DATABASE_URL`) for persistence.
 - On first start with empty DB, app auto-seeds a fresh tournament (same teams/players, all ties pending).
 - `AUTO_SEED_FORCE_RESET=true` can be used for a one-time full reset to your default tournament data, then set it back to `false`.
 

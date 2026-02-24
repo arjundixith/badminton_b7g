@@ -1,28 +1,24 @@
 import os
 from collections.abc import Generator
-from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_DB_PATH = BASE_DIR / "tournament.db"
-VERCEL_TMP_DB_PATH = Path("/tmp/tournament.db")
+LOCAL_DEFAULT_DATABASE_URL = "postgresql+psycopg:///badminton_b7g"
 
 
 def normalize_database_url(raw_url: str | None) -> str:
-    if not raw_url:
-        if os.getenv("VERCEL"):
-            return f"sqlite:///{VERCEL_TMP_DB_PATH}"
-        return f"sqlite:///{DEFAULT_DB_PATH}"
+    value = (raw_url or "").strip()
+    if not value:
+        value = os.getenv("LOCAL_DATABASE_URL", LOCAL_DEFAULT_DATABASE_URL).strip()
 
-    if raw_url.startswith("postgres://"):
-        return raw_url.replace("postgres://", "postgresql+psycopg://", 1)
+    if value.startswith("postgres://"):
+        return value.replace("postgres://", "postgresql+psycopg://", 1)
 
-    if raw_url.startswith("postgresql://"):
-        return raw_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    if value.startswith("postgresql://"):
+        return value.replace("postgresql://", "postgresql+psycopg://", 1)
 
-    return raw_url
+    return value
 
 
 DATABASE_URL = normalize_database_url(os.getenv("DATABASE_URL"))

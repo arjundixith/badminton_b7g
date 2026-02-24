@@ -71,6 +71,7 @@ export default function Viewer() {
     const [error, setError] = useState("");
     const [selectedTeamId, setSelectedTeamId] = useState(null);
     const requestIdRef = useRef(0);
+    const hasSettledInitialLoadRef = useRef(false);
 
     useEffect(() => {
         let mounted = true;
@@ -91,7 +92,8 @@ export default function Viewer() {
                     setError(err.message || "Failed to load viewer dashboard");
                 }
             } finally {
-                if (mounted && initial && requestId === requestIdRef.current) {
+                if (mounted && !hasSettledInitialLoadRef.current) {
+                    hasSettledInitialLoadRef.current = true;
                     setLoading(false);
                 }
             }

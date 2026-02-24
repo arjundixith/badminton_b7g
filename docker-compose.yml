@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: badminton-postgres
+    environment:
+      POSTGRES_DB: badminton_b7g
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - badminton_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d badminton_b7g"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  badminton_pg_data:

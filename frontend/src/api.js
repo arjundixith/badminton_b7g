@@ -2,12 +2,27 @@ const baseUrl =
     import.meta.env.VITE_API_URL ??
     (import.meta.env.PROD ? "/api" : "http://localhost:8000");
 const API = baseUrl.replace(/\/$/, "");
+const REQUEST_TIMEOUT_MS = 8000;
 
 async function request(path, options = {}) {
-    const response = await fetch(`${API}${path}`, {
-        cache: "no-store",
-        ...options,
-    });
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let response;
+
+    try {
+        response = await fetch(`${API}${path}`, {
+            cache: "no-store",
+            ...options,
+            signal: controller.signal,
+        });
+    } catch (error) {
+        if (error?.name === "AbortError") {
+            throw new Error(`API timeout after ${REQUEST_TIMEOUT_MS / 1000}s (${API}${path})`);
+        }
+        throw error;
+    } finally {
+        window.clearTimeout(timeout);
+    }
 
     if (!response.ok) {
         let message = `Request failed (${response.status})`;

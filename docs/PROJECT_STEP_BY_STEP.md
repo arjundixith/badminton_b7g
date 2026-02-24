@@ -22,7 +22,7 @@ Core tournament flow:
 
 - Frontend: React + Vite
 - Backend: FastAPI + SQLAlchemy
-- Database: SQLite (local), Postgres (recommended in cloud)
+- Database: Postgres (local + cloud). SQLite is used only in backend tests.
 - Deployment: single-project Vercel setup (frontend + backend API under `/api`)
 
 ## 3. Repository Structure
@@ -258,7 +258,7 @@ Code is the same, but config differs.
 Local:
 
 - `VITE_API_URL=http://localhost:8000`
-- usually SQLite file DB
+- `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/badminton_b7g`
 
 Production (Vercel single project):
 
@@ -285,6 +285,8 @@ Frontend:
 Backend:
 
 ```bash
+docker compose up -d postgres
+
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
@@ -337,4 +339,3 @@ If you want, next I can also generate a second document focused only on:
 
 - `Referee user manual` (button-by-button)
 - `Admin operations` (reset, reseed, deploy, backup)
-
