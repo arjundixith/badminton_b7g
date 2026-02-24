@@ -7,10 +7,13 @@ from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_DB_PATH = BASE_DIR / "tournament.db"
+VERCEL_TMP_DB_PATH = Path("/tmp/tournament.db")
 
 
 def normalize_database_url(raw_url: str | None) -> str:
     if not raw_url:
+        if os.getenv("VERCEL"):
+            return f"sqlite:///{VERCEL_TMP_DB_PATH}"
         return f"sqlite:///{DEFAULT_DB_PATH}"
 
     if raw_url.startswith("postgres://"):

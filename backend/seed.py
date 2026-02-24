@@ -3,8 +3,12 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timedelta
 
-from app import models
-from app.database import Base, SessionLocal, engine
+try:
+    from app import models
+    from app.database import Base, SessionLocal, engine
+except ModuleNotFoundError:
+    from backend.app import models
+    from backend.app.database import Base, SessionLocal, engine
 
 TEAM_ROSTERS = {
     "Golden Monks": {
