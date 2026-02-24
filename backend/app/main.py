@@ -38,8 +38,22 @@ def should_auto_seed() -> bool:
     return value in {"1", "true", "yes", "on"}
 
 
+def should_force_seed_reset() -> bool:
+    value = os.getenv("AUTO_SEED_FORCE_RESET", "false").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
 def seed_if_empty() -> None:
     if not should_auto_seed():
+        return
+
+    try:
+        from seed import seed
+    except ModuleNotFoundError:
+        from backend.seed import seed
+
+    if should_force_seed_reset():
+        seed(demo_progress=False, reset_db=True)
         return
 
     db = SessionLocal()
@@ -51,12 +65,7 @@ def seed_if_empty() -> None:
     if has_teams:
         return
 
-    try:
-        from seed import seed
-    except ModuleNotFoundError:
-        from backend.seed import seed
-
-    seed(demo_progress=False)
+    seed(demo_progress=False, reset_db=False)
 
 
 seed_if_empty()

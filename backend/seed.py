@@ -235,11 +235,15 @@ def apply_demo_progress(tie: models.Tie, matches: list[models.Match], referee: m
         tie.winner_team_id = None
 
 
-def seed(*, demo_progress: bool = False) -> None:
-    reset_database()
+def seed(*, demo_progress: bool = False, reset_db: bool = True) -> None:
+    if reset_db:
+        reset_database()
 
     db = SessionLocal()
     try:
+        if not reset_db and db.query(models.Team.id).first() is not None:
+            return
+
         teams: dict[str, models.Team] = {}
 
         for team_name, players in TEAM_ROSTERS.items():
@@ -322,6 +326,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    seed(demo_progress=args.demo_progress)
+    seed(demo_progress=args.demo_progress, reset_db=True)
     mode = "demo" if args.demo_progress else "fresh"
     print(f"Seed completed ({mode})")

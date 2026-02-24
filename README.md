@@ -89,6 +89,7 @@ Use:
    - `DATABASE_URL` = your Neon connection string (`postgresql://...`)
    - `CORS_ORIGINS` = your Vercel frontend URL (for example `https://your-app.vercel.app`)
    - `AUTO_SEED_ON_EMPTY=true` (already defaulted in `render.yaml`)
+   - optional: `AUTO_SEED_FORCE_RESET=true` (force reset to fresh tournament on every startup; keep `false` for normal use)
 
 Notes:
 
@@ -123,6 +124,7 @@ Steps:
 3. Add environment variables in Vercel project:
    - `DATABASE_URL=postgresql://...` (Neon free DB URL)
    - `AUTO_SEED_ON_EMPTY=true`
+   - `AUTO_SEED_FORCE_RESET=false`
    - `CORS_ORIGINS=https://<your-vercel-domain>`
    - `VITE_API_URL=/api`
 4. Deploy.
@@ -136,6 +138,7 @@ Notes:
 
 - SQLite is not durable on Vercel serverless, so use Postgres (`DATABASE_URL`).
 - On first start with empty DB, app auto-seeds a fresh tournament (same teams/players, all ties pending).
+- `AUTO_SEED_FORCE_RESET=true` can be used for a one-time full reset to your default tournament data, then set it back to `false`.
 
 ## Quality Commands
 
