@@ -103,6 +103,78 @@ tr:nth-child(even) td { background: #f8fafc; }
   padding: 8px 10px;
   margin-top: 20px;
 }
+.appendix-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f1f5f9;
+}
+.appendix-controls input {
+  min-width: 220px;
+  flex: 1 1 260px;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  padding: 7px 8px;
+  font-size: 12px;
+}
+.appendix-controls button {
+  border: 1px solid #1d4ed8;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  padding: 7px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.appendix-controls button.secondary {
+  background: #fff;
+  color: #1d4ed8;
+}
+.appendix-link-grid {
+  columns: 2;
+  column-gap: 14px;
+  margin: 10px 0 14px;
+}
+.appendix-link-grid a {
+  display: inline-block;
+  margin: 2px 0;
+  color: #1d4ed8;
+  text-decoration: none;
+  font-size: 12px;
+}
+.file-block {
+  margin: 12px 0;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  background: #ffffff;
+}
+.file-block summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ecfeff;
+  font-weight: 600;
+  color: #0f172a;
+}
+.file-block summary::-webkit-details-marker {
+  display: none;
+}
+.file-block summary::before {
+  content: "+ ";
+  color: #2563eb;
+}
+.file-block[open] summary::before {
+  content: "- ";
+}
+.file-block-content {
+  padding: 8px 10px 2px;
+}
 .footer {
   margin-top: 26px;
   padding-top: 10px;
@@ -113,6 +185,11 @@ tr:nth-child(even) td { background: #f8fafc; }
 @page {
   margin: 1in;
 }
+@media (max-width: 900px) {
+  .appendix-link-grid {
+    columns: 1;
+  }
+}
 </style>
 </head>
 <body>
@@ -122,8 +199,8 @@ tr:nth-child(even) td { background: #f8fafc; }
   <h1>B7G Badminton Project Encyclopedia</h1>
   <h2>Industry-Standard Technical Handbook - Setup, Codebase, Operations, and Deployment</h2>
   <p><strong>Repository:</strong> badminton-app</p>
-  <p><strong>Branch:</strong> main | <strong>Commit:</strong> 0230e86</p>
-  <p><strong>Generated:</strong> 2026-02-24 18:38:47</p>
+  <p><strong>Branch:</strong> main | <strong>Commit:</strong> e34212d</p>
+  <p><strong>Generated:</strong> 2026-02-24 18:54:24</p>
   <p><strong>Audience:</strong> New and experienced engineers onboarding to this project.</p>
 </div>
 <div class='container'>
@@ -243,8 +320,48 @@ npm run dev</code></pre>
 <h3>7.2 Verification Checklist</h3>
 <ul><li><code>/api/health</code> returns JSON status ok.</li><li>Viewer loads without JSON parse errors.</li><li>Referee can assign and score a match end-to-end.</li><li>Standings update after completed tie games.</li><li>Final appears only after all 10 ties completed.</li></ul>
 <h2 class='section' id='s8'>8. Code Encyclopedia Appendix (Line-by-Line)</h2>
-<p>This appendix presents every line for core project files with a concise line-level explanation to help new engineers learn code incrementally and systematically.</p>
-<div class='file-title'><strong>README.md</strong> &nbsp; | &nbsp; Lines: 191</div>
+<p>This appendix presents every line for core project files with concise explanations. Sections are collapsed by default to improve navigation.</p>
+<div class='appendix-controls'><input id='fileFilter' type='text' placeholder='Filter files (example: viewer, backend/app, seed.py)'><button type='button' onclick='expandAllFiles()'>Expand All</button><button type='button' class='secondary' onclick='collapseAllFiles()'>Collapse All</button><span class='small' id='fileCount'></span></div>
+<div class='appendix-link-grid'>
+<a href='#readme-md'><code>README.md</code> (191)</a>
+<a href='#makefile'><code>Makefile</code> (13)</a>
+<a href='#pyproject-toml'><code>pyproject.toml</code> (24)</a>
+<a href='#requirements-txt'><code>requirements.txt</code> (2)</a>
+<a href='#vercel-json'><code>vercel.json</code> (16)</a>
+<a href='#render-yaml'><code>render.yaml</code> (18)</a>
+<a href='#api-index-py'><code>api/index.py</code> (76)</a>
+<a href='#backend-requirements-txt'><code>backend/requirements.txt</code> (5)</a>
+<a href='#backend-requirements-dev-txt'><code>backend/requirements-dev.txt</code> (3)</a>
+<a href='#backend-app-database-py'><code>backend/app/database.py</code> (45)</a>
+<a href='#backend-app-models-py'><code>backend/app/models.py</code> (199)</a>
+<a href='#backend-app-schemas-py'><code>backend/app/schemas.py</code> (235)</a>
+<a href='#backend-app-serializers-py'><code>backend/app/serializers.py</code> (116)</a>
+<a href='#backend-app-crud-py'><code>backend/app/crud.py</code> (1296)</a>
+<a href='#backend-app-main-py'><code>backend/app/main.py</code> (89)</a>
+<a href='#backend-app-routes-teams-py'><code>backend/app/routes/teams.py</code> (20)</a>
+<a href='#backend-app-routes-players-py'><code>backend/app/routes/players.py</code> (22)</a>
+<a href='#backend-app-routes-ties-py'><code>backend/app/routes/ties.py</code> (26)</a>
+<a href='#backend-app-routes-matches-py'><code>backend/app/routes/matches.py</code> (93)</a>
+<a href='#backend-app-routes-referee-py'><code>backend/app/routes/referee.py</code> (26)</a>
+<a href='#backend-app-routes-schedule-py'><code>backend/app/routes/schedule.py</code> (23)</a>
+<a href='#backend-app-routes-viewer-py'><code>backend/app/routes/viewer.py</code> (22)</a>
+<a href='#backend-app-routes-finals-py'><code>backend/app/routes/finals.py</code> (77)</a>
+<a href='#backend-seed-py'><code>backend/seed.py</code> (331)</a>
+<a href='#backend-tests-test-api-py'><code>backend/tests/test_api.py</code> (569)</a>
+<a href='#frontend-package-json'><code>frontend/package.json</code> (19)</a>
+<a href='#frontend-vite-config-js'><code>frontend/vite.config.js</code> (6)</a>
+<a href='#frontend-src-main-jsx'><code>frontend/src/main.jsx</code> (11)</a>
+<a href='#frontend-src-app-jsx'><code>frontend/src/App.jsx</code> (80)</a>
+<a href='#frontend-src-api-js'><code>frontend/src/api.js</code> (154)</a>
+<a href='#frontend-src-pages-home-jsx'><code>frontend/src/pages/Home.jsx</code> (171)</a>
+<a href='#frontend-src-pages-viewer-jsx'><code>frontend/src/pages/Viewer.jsx</code> (590)</a>
+<a href='#frontend-src-pages-referee-jsx'><code>frontend/src/pages/Referee.jsx</code> (1819)</a>
+<a href='#frontend-src-pages-postfinals-jsx'><code>frontend/src/pages/PostFinals.jsx</code> (169)</a>
+<a href='#frontend-src-pages-schedule-jsx'><code>frontend/src/pages/Schedule.jsx</code> (105)</a>
+<a href='#frontend-src-pages-match-jsx'><code>frontend/src/pages/Match.jsx</code> (140)</a>
+<a href='#frontend-src-styles-css'><code>frontend/src/styles.css</code> (1344)</a>
+</div>
+<details class='file-block' id='readme-md' data-file='readme.md' open><summary><code>README.md</code> &nbsp; | &nbsp; Lines: 191</summary><div class='file-block-content'>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code># Badminton App</code></td><td>Markdown heading that structures documentation hierarchy.</td></tr>
 <tr><td>2</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
@@ -438,7 +555,8 @@ npm run dev</code></pre>
 <tr><td>190</td><td><code>npm run build</code></td><td>Documentation content line conveying project instructions or notes.</td></tr>
 <tr><td>191</td><td><code>```</code></td><td>Markdown code fence boundary.</td></tr>
 </table>
-<div class='file-title'><strong>Makefile</strong> &nbsp; | &nbsp; Lines: 13</div>
+</div></details>
+<details class='file-block' id='makefile' data-file='makefile' open><summary><code>Makefile</code> &nbsp; | &nbsp; Lines: 13</summary><div class='file-block-content'>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>.PHONY: backend frontend seed test</code></td><td>Code line that supports the surrounding logic block.</td></tr>
 <tr><td>2</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
@@ -454,7 +572,8 @@ npm run dev</code></pre>
 <tr><td>12</td><td><code>test:</code></td><td>Code line that supports the surrounding logic block.</td></tr>
 <tr><td>13</td><td><code>    cd backend &amp;&amp; python3 -m pytest</code></td><td>Code line that supports the surrounding logic block.</td></tr>
 </table>
-<div class='file-title'><strong>pyproject.toml</strong> &nbsp; | &nbsp; Lines: 24</div>
+</div></details>
+<details class='file-block' id='pyproject-toml' data-file='pyproject.toml'><summary><code>pyproject.toml</code> &nbsp; | &nbsp; Lines: 24</summary><div class='file-block-content'>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>[project]</code></td><td>Configuration structure delimiter.</td></tr>
 <tr><td>2</td><td><code>name = &quot;badminton-app&quot;</code></td><td>Configuration key/value that controls runtime or deployment behavior.</td></tr>
@@ -481,12 +600,14 @@ npm run dev</code></pre>
 <tr><td>23</td><td><code>testpaths = [&quot;backend/tests&quot;]</code></td><td>Configuration key/value that controls runtime or deployment behavior.</td></tr>
 <tr><td>24</td><td><code>addopts = &quot;-q&quot;</code></td><td>Configuration key/value that controls runtime or deployment behavior.</td></tr>
 </table>
-<div class='file-title'><strong>requirements.txt</strong> &nbsp; | &nbsp; Lines: 2</div>
+</div></details>
+<details class='file-block' id='requirements-txt' data-file='requirements.txt'><summary><code>requirements.txt</code> &nbsp; | &nbsp; Lines: 2</summary><div class='file-block-content'>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>-r backend/requirements.txt</code></td><td>Code line that supports the surrounding logic block.</td></tr>
 <tr><td>2</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
 </table>
-<div class='file-title'><strong>vercel.json</strong> &nbsp; | &nbsp; Lines: 16</div>
+</div></details>
+<details class='file-block' id='vercel-json' data-file='vercel.json'><summary><code>vercel.json</code> &nbsp; | &nbsp; Lines: 16</summary><div class='file-block-content'>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>{</code></td><td>Configuration structure delimiter.</td></tr>
 <tr><td>2</td><td><code>  &quot;framework&quot;: &quot;vite&quot;,</code></td><td>Configuration key/value that controls runtime or deployment behavior.</td></tr>
@@ -505,7 +626,8 @@ npm run dev</code></pre>
 <tr><td>15</td><td><code>  ]</code></td><td>Configuration structure delimiter.</td></tr>
 <tr><td>16</td><td><code>}</code></td><td>Configuration structure delimiter.</td></tr>
 </table>
-<div class='file-title'><strong>render.yaml</strong> &nbsp; | &nbsp; Lines: 18</div>
+</div></details>
+<details class='file-block' id='render-yaml' data-file='render.yaml'><summary><code>render.yaml</code> &nbsp; | &nbsp; Lines: 18</summary><div class='file-block-content'>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>services:</code></td><td>Configuration key/value that controls runtime or deployment behavior.</td></tr>
 <tr><td>2</td><td><code>  - type: web</code></td><td>Configuration key/value that controls runtime or deployment behavior.</td></tr>
@@ -526,7 +648,8 @@ npm run dev</code></pre>
 <tr><td>17</td><td><code>      - key: CORS_ORIGINS</code></td><td>Configuration key/value that controls runtime or deployment behavior.</td></tr>
 <tr><td>18</td><td><code>        sync: false</code></td><td>Configuration key/value that controls runtime or deployment behavior.</td></tr>
 </table>
-<div class='file-title'><strong>api/index.py</strong> &nbsp; | &nbsp; Lines: 76</div>
+</div></details>
+<details class='file-block' id='api-index-py' data-file='api/index.py'><summary><code>api/index.py</code> &nbsp; | &nbsp; Lines: 76</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def _join_paths, def _normalize_api_path</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from collections.abc import Awaitable, Callable</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -606,7 +729,8 @@ npm run dev</code></pre>
 <tr><td>75</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
 <tr><td>76</td><td><code>    await fastapi_app(scope, receive, send)</code></td><td>Python logic line contributing to backend behavior.</td></tr>
 </table>
-<div class='file-title'><strong>backend/requirements.txt</strong> &nbsp; | &nbsp; Lines: 5</div>
+</div></details>
+<details class='file-block' id='backend-requirements-txt' data-file='backend/requirements.txt'><summary><code>backend/requirements.txt</code> &nbsp; | &nbsp; Lines: 5</summary><div class='file-block-content'>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>fastapi&gt;=0.115,&lt;1.0</code></td><td>Code line that supports the surrounding logic block.</td></tr>
 <tr><td>2</td><td><code>uvicorn[standard]&gt;=0.30,&lt;1.0</code></td><td>Code line that supports the surrounding logic block.</td></tr>
@@ -614,13 +738,15 @@ npm run dev</code></pre>
 <tr><td>4</td><td><code>pydantic&gt;=2.8,&lt;3.0</code></td><td>Code line that supports the surrounding logic block.</td></tr>
 <tr><td>5</td><td><code>psycopg[binary]&gt;=3.2,&lt;4.0</code></td><td>Code line that supports the surrounding logic block.</td></tr>
 </table>
-<div class='file-title'><strong>backend/requirements-dev.txt</strong> &nbsp; | &nbsp; Lines: 3</div>
+</div></details>
+<details class='file-block' id='backend-requirements-dev-txt' data-file='backend/requirements-dev.txt'><summary><code>backend/requirements-dev.txt</code> &nbsp; | &nbsp; Lines: 3</summary><div class='file-block-content'>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>-r requirements.txt</code></td><td>Code line that supports the surrounding logic block.</td></tr>
 <tr><td>2</td><td><code>pytest&gt;=8.0,&lt;9.0</code></td><td>Code line that supports the surrounding logic block.</td></tr>
 <tr><td>3</td><td><code>httpx&gt;=0.27,&lt;1.0</code></td><td>Code line that supports the surrounding logic block.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/database.py</strong> &nbsp; | &nbsp; Lines: 45</div>
+</div></details>
+<details class='file-block' id='backend-app-database-py' data-file='backend/app/database.py'><summary><code>backend/app/database.py</code> &nbsp; | &nbsp; Lines: 45</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def normalize_database_url, def get_db</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>import os</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -669,7 +795,8 @@ npm run dev</code></pre>
 <tr><td>44</td><td><code>    finally:</code></td><td>Cleanup block guaranteed to run.</td></tr>
 <tr><td>45</td><td><code>        db.close()</code></td><td>Database operation through ORM session.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/models.py</strong> &nbsp; | &nbsp; Lines: 199</div>
+</div></details>
+<details class='file-block' id='backend-app-models-py' data-file='backend/app/models.py'><summary><code>backend/app/models.py</code> &nbsp; | &nbsp; Lines: 199</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> class Team, class Player, class Tie, class Referee, class Match, class FinalMatch, class FinalGame</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Integer, String, UniqueConstraint</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -872,7 +999,8 @@ npm run dev</code></pre>
 <tr><td>198</td><td><code>        CheckConstraint(&quot;winner_side in (1, 2) or winner_side is null&quot;, name=&quot;ck_final_game_winner_side_valid&quot;),</code></td><td>Variable assignment or state mutation line.</td></tr>
 <tr><td>199</td><td><code>    )</code></td><td>Structure delimiter for code block/syntax.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/schemas.py</strong> &nbsp; | &nbsp; Lines: 235</div>
+</div></details>
+<details class='file-block' id='backend-app-schemas-py' data-file='backend/app/schemas.py'><summary><code>backend/app/schemas.py</code> &nbsp; | &nbsp; Lines: 235</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> class ORMBaseModel, class ORMBaseModel, class Config, class TeamCreate, class TeamRead, class PlayerCreate, class PlayerRead, class ScoreUpdate, class LineupUpdate, class MatchStatusUpdate, class RefereeRead, class MatchRead, class TieRead, class RefereeAssignmentResponse, class FinalGameRead, class FinalMatchRead, class StandingRow, class DashboardSummary, class MedalSummary, class CategoryPlayerWin</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from typing import Literal</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -1111,7 +1239,8 @@ npm run dev</code></pre>
 <tr><td>234</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
 <tr><td>235</td><td><code>    rule_highlights: list[str]</code></td><td>Python logic line contributing to backend behavior.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/serializers.py</strong> &nbsp; | &nbsp; Lines: 116</div>
+</div></details>
+<details class='file-block' id='backend-app-serializers-py' data-file='backend/app/serializers.py'><summary><code>backend/app/serializers.py</code> &nbsp; | &nbsp; Lines: 116</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def model_dump_compat, def _lineup_needs_referee_input, def match_to_read, def tie_to_read, def final_match_to_read</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from . import models, schemas</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -1231,7 +1360,8 @@ npm run dev</code></pre>
 <tr><td>115</td><td><code>        ],</code></td><td>Python logic line contributing to backend behavior.</td></tr>
 <tr><td>116</td><td><code>    )</code></td><td>Structure delimiter for code block/syntax.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/crud.py</strong> &nbsp; | &nbsp; Lines: 1296</div>
+</div></details>
+<details class='file-block' id='backend-app-crud-py' data-file='backend/app/crud.py'><summary><code>backend/app/crud.py</code> &nbsp; | &nbsp; Lines: 1296</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def _normalize_text, def _match_sort_key, def _is_finished, def _calculate_winner_side, def _validate_score_input, def _requires_referee_lineup_entry, def _normalize_lineup_text, def _is_confirmed_doubles_lineup, def _lineup_parts, def _discipline_slot_tokens, def _category_from_discipline_token, def _winner_lineup_players, def _set_option_categories_from_token, def _category_options_from_token, def _category_for_slot_assignment, def _is_decider_match, def _is_decider_unlocked, def _is_decider_result_state, def _is_decider_allowed_in_views, def _assert_decider_unlocked</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from collections import Counter</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -2531,7 +2661,8 @@ npm run dev</code></pre>
 <tr><td>1295</td><td><code>        categories=categories,</code></td><td>Variable assignment or state mutation line.</td></tr>
 <tr><td>1296</td><td><code>    )</code></td><td>Structure delimiter for code block/syntax.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/main.py</strong> &nbsp; | &nbsp; Lines: 89</div>
+</div></details>
+<details class='file-block' id='backend-app-main-py' data-file='backend/app/main.py'><summary><code>backend/app/main.py</code> &nbsp; | &nbsp; Lines: 89</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def should_auto_seed, def should_force_seed_reset, def seed_if_empty, def health</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>import os</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -2624,7 +2755,8 @@ npm run dev</code></pre>
 <tr><td>88</td><td><code>app.include_router(viewer.router)</code></td><td>Python logic line contributing to backend behavior.</td></tr>
 <tr><td>89</td><td><code>app.include_router(finals.router, prefix=&quot;/finals&quot;)</code></td><td>Variable assignment or state mutation line.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/routes/teams.py</strong> &nbsp; | &nbsp; Lines: 20</div>
+</div></details>
+<details class='file-block' id='backend-app-routes-teams-py' data-file='backend/app/routes/teams.py'><summary><code>backend/app/routes/teams.py</code> &nbsp; | &nbsp; Lines: 20</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def list_teams, def create_team</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from fastapi import APIRouter, Depends, HTTPException, status</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -2648,7 +2780,8 @@ npm run dev</code></pre>
 <tr><td>19</td><td><code>    except ValueError as exc:</code></td><td>Exception handler for anticipated failures.</td></tr>
 <tr><td>20</td><td><code>        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc</code></td><td>Raises explicit error to enforce business rule or validation.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/routes/players.py</strong> &nbsp; | &nbsp; Lines: 22</div>
+</div></details>
+<details class='file-block' id='backend-app-routes-players-py' data-file='backend/app/routes/players.py'><summary><code>backend/app/routes/players.py</code> &nbsp; | &nbsp; Lines: 22</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def list_players, def create_player</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from fastapi import APIRouter, Depends, HTTPException, status</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -2674,7 +2807,8 @@ npm run dev</code></pre>
 <tr><td>21</td><td><code>    except ValueError as exc:</code></td><td>Exception handler for anticipated failures.</td></tr>
 <tr><td>22</td><td><code>        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc</code></td><td>Raises explicit error to enforce business rule or validation.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/routes/ties.py</strong> &nbsp; | &nbsp; Lines: 26</div>
+</div></details>
+<details class='file-block' id='backend-app-routes-ties-py' data-file='backend/app/routes/ties.py'><summary><code>backend/app/routes/ties.py</code> &nbsp; | &nbsp; Lines: 26</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def list_ties, def list_tie_matches</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from fastapi import APIRouter, Depends, HTTPException</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -2704,7 +2838,8 @@ npm run dev</code></pre>
 <tr><td>25</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
 <tr><td>26</td><td><code>    return [serializers.match_to_read(match) for match in matches]</code></td><td>Returns computed value/control from function.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/routes/matches.py</strong> &nbsp; | &nbsp; Lines: 93</div>
+</div></details>
+<details class='file-block' id='backend-app-routes-matches-py' data-file='backend/app/routes/matches.py'><summary><code>backend/app/routes/matches.py</code> &nbsp; | &nbsp; Lines: 93</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def list_matches, def update_score_patch, def update_score_legacy, def update_score_query, def update_lineup_patch, def update_status_patch</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from typing import Literal</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -2801,7 +2936,8 @@ npm run dev</code></pre>
 <tr><td>92</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
 <tr><td>93</td><td><code>    return serializers.match_to_read(match)</code></td><td>Returns computed value/control from function.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/routes/referee.py</strong> &nbsp; | &nbsp; Lines: 26</div>
+</div></details>
+<details class='file-block' id='backend-app-routes-referee-py' data-file='backend/app/routes/referee.py'><summary><code>backend/app/routes/referee.py</code> &nbsp; | &nbsp; Lines: 26</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def assign_referee</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from fastapi import APIRouter, Depends, HTTPException, Query, status</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -2831,7 +2967,8 @@ npm run dev</code></pre>
 <tr><td>25</td><td><code>        match=serializers.match_to_read(match),</code></td><td>Variable assignment or state mutation line.</td></tr>
 <tr><td>26</td><td><code>    )</code></td><td>Structure delimiter for code block/syntax.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/routes/schedule.py</strong> &nbsp; | &nbsp; Lines: 23</div>
+</div></details>
+<details class='file-block' id='backend-app-routes-schedule-py' data-file='backend/app/routes/schedule.py'><summary><code>backend/app/routes/schedule.py</code> &nbsp; | &nbsp; Lines: 23</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def get_schedule</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from fastapi import APIRouter, Depends</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -2858,7 +2995,8 @@ npm run dev</code></pre>
 <tr><td>22</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
 <tr><td>23</td><td><code>    return schedule</code></td><td>Returns computed value/control from function.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/routes/viewer.py</strong> &nbsp; | &nbsp; Lines: 22</div>
+</div></details>
+<details class='file-block' id='backend-app-routes-viewer-py' data-file='backend/app/routes/viewer.py'><summary><code>backend/app/routes/viewer.py</code> &nbsp; | &nbsp; Lines: 22</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def viewer_dashboard, def standings, def post_finals_category_summary</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from fastapi import APIRouter, Depends</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -2884,7 +3022,8 @@ npm run dev</code></pre>
 <tr><td>21</td><td><code>def post_finals_category_summary(db: Session = Depends(get_db)) -&gt; schemas.PostFinalsCategorySummary:</code></td><td>Function declaration encapsulating a specific unit of backend behavior.</td></tr>
 <tr><td>22</td><td><code>    return crud.build_post_finals_category_summary(db)</code></td><td>Returns computed value/control from function.</td></tr>
 </table>
-<div class='file-title'><strong>backend/app/routes/finals.py</strong> &nbsp; | &nbsp; Lines: 77</div>
+</div></details>
+<details class='file-block' id='backend-app-routes-finals-py' data-file='backend/app/routes/finals.py'><summary><code>backend/app/routes/finals.py</code> &nbsp; | &nbsp; Lines: 77</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def get_final_match, def assign_final_referee, def update_final_score, def assign_final_game_referee, def update_final_game_score</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from fastapi import APIRouter, Depends, HTTPException, Query, status</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -2965,7 +3104,8 @@ npm run dev</code></pre>
 <tr><td>76</td><td><code>&nbsp;</code></td><td>Blank line used for readability and separation of logic blocks.</td></tr>
 <tr><td>77</td><td><code>    return serializers.final_match_to_read(final_match)</code></td><td>Returns computed value/control from function.</td></tr>
 </table>
-<div class='file-title'><strong>backend/seed.py</strong> &nbsp; | &nbsp; Lines: 331</div>
+</div></details>
+<details class='file-block' id='backend-seed-py' data-file='backend/seed.py'><summary><code>backend/seed.py</code> &nbsp; | &nbsp; Lines: 331</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def reset_database, def plus_minutes, def get_tie_match_time, def apply_demo_progress, def seed</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>from __future__ import annotations</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -3300,7 +3440,8 @@ npm run dev</code></pre>
 <tr><td>330</td><td><code>    mode = &quot;demo&quot; if args.demo_progress else &quot;fresh&quot;</code></td><td>Variable assignment or state mutation line.</td></tr>
 <tr><td>331</td><td><code>    print(f&quot;Seed completed ({mode})&quot;)</code></td><td>Python logic line contributing to backend behavior.</td></tr>
 </table>
-<div class='file-title'><strong>backend/tests/test_api.py</strong> &nbsp; | &nbsp; Lines: 569</div>
+</div></details>
+<details class='file-block' id='backend-tests-test-api-py' data-file='backend/tests/test_api.py'><summary><code>backend/tests/test_api.py</code> &nbsp; | &nbsp; Lines: 569</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> def session_factory, def client, def override_get_db, def seed_match_data, def seed_completed_league_for_tiebreak, def add_tie, def test_healthcheck, def test_score_update_requires_referee_assignment, def test_viewer_dashboard_returns_ties_only, def test_viewer_standings_finalists_and_bronze_tiebreak, def test_final_tie_creation_and_medals, def test_final_games_counted_only_after_all_ties_completed, def test_post_finals_category_summary_endpoint, def test_post_finals_mixed_pair_counts_by_individual_set_level, def test_post_finals_or_token_uses_lineup_order_for_set_split, def test_post_finals_category_tiebreak_uses_opponent_score_then_lead</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>import os</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -3873,7 +4014,8 @@ npm run dev</code></pre>
 <tr><td>568</td><td><code>    assert men_set1[&quot;winner_opponent_score&quot;] == 18</code></td><td>Variable assignment or state mutation line.</td></tr>
 <tr><td>569</td><td><code>    assert men_set1[&quot;winner_lead_score&quot;] == 3</code></td><td>Variable assignment or state mutation line.</td></tr>
 </table>
-<div class='file-title'><strong>frontend/package.json</strong> &nbsp; | &nbsp; Lines: 19</div>
+</div></details>
+<details class='file-block' id='frontend-package-json' data-file='frontend/package.json'><summary><code>frontend/package.json</code> &nbsp; | &nbsp; Lines: 19</summary><div class='file-block-content'>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>{</code></td><td>Configuration structure delimiter.</td></tr>
 <tr><td>2</td><td><code>  &quot;name&quot;: &quot;tournament-ui&quot;,</code></td><td>Configuration key/value that controls runtime or deployment behavior.</td></tr>
@@ -3895,7 +4037,8 @@ npm run dev</code></pre>
 <tr><td>18</td><td><code>  }</code></td><td>Configuration structure delimiter.</td></tr>
 <tr><td>19</td><td><code>}</code></td><td>Configuration structure delimiter.</td></tr>
 </table>
-<div class='file-title'><strong>frontend/vite.config.js</strong> &nbsp; | &nbsp; Lines: 6</div>
+</div></details>
+<details class='file-block' id='frontend-vite-config-js' data-file='frontend/vite.config.js'><summary><code>frontend/vite.config.js</code> &nbsp; | &nbsp; Lines: 6</summary><div class='file-block-content'>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>import { defineConfig } from &quot;vite&quot;;</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
 <tr><td>2</td><td><code>import react from &quot;@vitejs/plugin-react&quot;;</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -3904,7 +4047,8 @@ npm run dev</code></pre>
 <tr><td>5</td><td><code>    plugins: [react()]</code></td><td>Frontend logic line participating in data flow or rendering.</td></tr>
 <tr><td>6</td><td><code>});</code></td><td>Frontend logic line participating in data flow or rendering.</td></tr>
 </table>
-<div class='file-title'><strong>frontend/src/main.jsx</strong> &nbsp; | &nbsp; Lines: 11</div>
+</div></details>
+<details class='file-block' id='frontend-src-main-jsx' data-file='frontend/src/main.jsx'><summary><code>frontend/src/main.jsx</code> &nbsp; | &nbsp; Lines: 11</summary><div class='file-block-content'>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>import React from &quot;react&quot;;</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
 <tr><td>2</td><td><code>import ReactDOM from &quot;react-dom/client&quot;;</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -3918,7 +4062,8 @@ npm run dev</code></pre>
 <tr><td>10</td><td><code>    &lt;/React.StrictMode&gt;,</code></td><td>JSX markup line defining UI structure.</td></tr>
 <tr><td>11</td><td><code>);</code></td><td>Frontend logic line participating in data flow or rendering.</td></tr>
 </table>
-<div class='file-title'><strong>frontend/src/App.jsx</strong> &nbsp; | &nbsp; Lines: 80</div>
+</div></details>
+<details class='file-block' id='frontend-src-app-jsx' data-file='frontend/src/app.jsx'><summary><code>frontend/src/App.jsx</code> &nbsp; | &nbsp; Lines: 80</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> ROUTE_PREFIX, withPrefix, App, usePrefixedRoutes, toPath, navItems</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>import { BrowserRouter, Navigate, NavLink, Route, Routes } from &quot;react-router-dom&quot;;</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -4002,7 +4147,8 @@ npm run dev</code></pre>
 <tr><td>79</td><td><code>    );</code></td><td>Frontend logic line participating in data flow or rendering.</td></tr>
 <tr><td>80</td><td><code>}</code></td><td>Structure delimiter for code block/syntax.</td></tr>
 </table>
-<div class='file-title'><strong>frontend/src/api.js</strong> &nbsp; | &nbsp; Lines: 154</div>
+</div></details>
+<details class='file-block' id='frontend-src-api-js' data-file='frontend/src/api.js'><summary><code>frontend/src/api.js</code> &nbsp; | &nbsp; Lines: 154</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> baseUrl, API, REQUEST_TIMEOUT_MS, controller, timeout, payload, query, suffix</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>const baseUrl =</code></td><td>Constant declaration storing immutable reference/value.</td></tr>
@@ -4160,7 +4306,8 @@ npm run dev</code></pre>
 <tr><td>153</td><td><code>    });</code></td><td>Frontend logic line participating in data flow or rendering.</td></tr>
 <tr><td>154</td><td><code>}</code></td><td>Structure delimiter for code block/syntax.</td></tr>
 </table>
-<div class='file-title'><strong>frontend/src/pages/Home.jsx</strong> &nbsp; | &nbsp; Lines: 171</div>
+</div></details>
+<details class='file-block' id='frontend-src-pages-home-jsx' data-file='frontend/src/pages/home.jsx'><summary><code>frontend/src/pages/Home.jsx</code> &nbsp; | &nbsp; Lines: 171</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> Home, payload, stats, standings, ties, totalTies, completedTies, leagueComplete, medals, finalMatch</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>import { useEffect, useState } from &quot;react&quot;;</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -4335,7 +4482,8 @@ npm run dev</code></pre>
 <tr><td>170</td><td><code>    );</code></td><td>Frontend logic line participating in data flow or rendering.</td></tr>
 <tr><td>171</td><td><code>}</code></td><td>Structure delimiter for code block/syntax.</td></tr>
 </table>
-<div class='file-title'><strong>frontend/src/pages/Viewer.jsx</strong> &nbsp; | &nbsp; Lines: 590</div>
+</div></details>
+<details class='file-block' id='frontend-src-pages-viewer-jsx' data-file='frontend/src/pages/viewer.jsx'><summary><code>frontend/src/pages/Viewer.jsx</code> &nbsp; | &nbsp; Lines: 590</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> isDeciderMatch, getTieResultForSide, winnerIsTeam1, won, formatSignedNumber, number, formatAverageLead, getMedalForTeam, medalLabelFromClass, Viewer, requestIdRef, hasSettledInitialLoadRef, requestId, payload, handleVisibilityRefresh, handleFocusRefresh, ties, tieStandings, finalMatch, finalGames</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>import { useEffect, useMemo, useRef, useState } from &quot;react&quot;;</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -4929,7 +5077,8 @@ npm run dev</code></pre>
 <tr><td>589</td><td><code>    );</code></td><td>Frontend logic line participating in data flow or rendering.</td></tr>
 <tr><td>590</td><td><code>}</code></td><td>Structure delimiter for code block/syntax.</td></tr>
 </table>
-<div class='file-title'><strong>frontend/src/pages/Referee.jsx</strong> &nbsp; | &nbsp; Lines: 1819</div>
+</div></details>
+<details class='file-block' id='frontend-src-pages-referee-jsx' data-file='frontend/src/pages/referee.jsx'><summary><code>frontend/src/pages/Referee.jsx</code> &nbsp; | &nbsp; Lines: 1819</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> STATUS_FILTERS, StatusPill, toMinutes, hour, minute, compareMatchOrder, aDay, bDay, aTime, bTime, aCourt, bCourt, normalizeLineup, toLineupParts, lineupForScore, parts, requiresRefereeLineupEntry, discipline, getScoreCap, isWinningScore</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>import { useEffect, useMemo, useRef, useState } from &quot;react&quot;;</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -6752,7 +6901,8 @@ npm run dev</code></pre>
 <tr><td>1818</td><td><code>    );</code></td><td>Frontend logic line participating in data flow or rendering.</td></tr>
 <tr><td>1819</td><td><code>}</code></td><td>Structure delimiter for code block/syntax.</td></tr>
 </table>
-<div class='file-title'><strong>frontend/src/pages/PostFinals.jsx</strong> &nbsp; | &nbsp; Lines: 169</div>
+</div></details>
+<details class='file-block' id='frontend-src-pages-postfinals-jsx' data-file='frontend/src/pages/postfinals.jsx'><summary><code>frontend/src/pages/PostFinals.jsx</code> &nbsp; | &nbsp; Lines: 169</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> medalCardClass, PostFinals, payload, medals, categories</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>import { useEffect, useState } from &quot;react&quot;;</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -6925,7 +7075,8 @@ npm run dev</code></pre>
 <tr><td>168</td><td><code>    );</code></td><td>Frontend logic line participating in data flow or rendering.</td></tr>
 <tr><td>169</td><td><code>}</code></td><td>Structure delimiter for code block/syntax.</td></tr>
 </table>
-<div class='file-title'><strong>frontend/src/pages/Schedule.jsx</strong> &nbsp; | &nbsp; Lines: 105</div>
+</div></details>
+<details class='file-block' id='frontend-src-pages-schedule-jsx' data-file='frontend/src/pages/schedule.jsx'><summary><code>frontend/src/pages/Schedule.jsx</code> &nbsp; | &nbsp; Lines: 105</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> Schedule, payload, days, sessions, dayOptions, sessionOptions, matches</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>import { useEffect, useState } from &quot;react&quot;;</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -7034,7 +7185,8 @@ npm run dev</code></pre>
 <tr><td>104</td><td><code>    );</code></td><td>Frontend logic line participating in data flow or rendering.</td></tr>
 <tr><td>105</td><td><code>}</code></td><td>Structure delimiter for code block/syntax.</td></tr>
 </table>
-<div class='file-title'><strong>frontend/src/pages/Match.jsx</strong> &nbsp; | &nbsp; Lines: 140</div>
+</div></details>
+<details class='file-block' id='frontend-src-pages-match-jsx' data-file='frontend/src/pages/match.jsx'><summary><code>frontend/src/pages/Match.jsx</code> &nbsp; | &nbsp; Lines: 140</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> Match, payload, selectedMatch, updated, handleMatchChange, newMatchId, found</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>import { useEffect, useState } from &quot;react&quot;;</code></td><td>Imports dependency or symbol needed by this module.</td></tr>
@@ -7178,7 +7330,8 @@ npm run dev</code></pre>
 <tr><td>139</td><td><code>    );</code></td><td>Frontend logic line participating in data flow or rendering.</td></tr>
 <tr><td>140</td><td><code>}</code></td><td>Structure delimiter for code block/syntax.</td></tr>
 </table>
-<div class='file-title'><strong>frontend/src/styles.css</strong> &nbsp; | &nbsp; Lines: 1344</div>
+</div></details>
+<details class='file-block' id='frontend-src-styles-css' data-file='frontend/src/styles.css'><summary><code>frontend/src/styles.css</code> &nbsp; | &nbsp; Lines: 1344</summary><div class='file-block-content'>
 <p class='small'><strong>Key symbols:</strong> :root, *, #root, body, p, a, .shell, .topbar, .brand, .brand-mark, .brand h1, .brand p, .menu, .menu::-webkit-scrollbar, .menu a, .menu a.active, .page-body, .stack-lg, .stack-md, .stack-sm</p>
 <table><tr><th style='width:7%'>Line</th><th style='width:43%'>Code</th><th style='width:50%'>Explanation</th></tr>
 <tr><td>1</td><td><code>@import url(&quot;https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&amp;family=Space+Mono:wght@400;700&amp;display=swap&quot;);</code></td><td>CSS property declaration controlling layout, typography, color, or interaction.</td></tr>
@@ -8526,5 +8679,49 @@ npm run dev</code></pre>
 <tr><td>1343</td><td><code>    }</code></td><td>CSS selector block closing.</td></tr>
 <tr><td>1344</td><td><code>}</code></td><td>CSS selector block closing.</td></tr>
 </table>
-<div class='footer'>Generated from source at commit <code>0230e86</code> on branch <code>main</code> (2026-02-24 18:38:47).</div>
+</div></details>
+<div class='footer'>Generated from source at commit <code>e34212d</code> on branch <code>main</code> (2026-02-24 18:54:24).</div>
+
+<script>
+(function () {
+  const blocks = () => Array.from(document.querySelectorAll(".file-block"));
+  const counter = document.getElementById("fileCount");
+  const filterInput = document.getElementById("fileFilter");
+
+  function updateCount(visible) {
+    if (!counter) return;
+    counter.textContent = visible + " file sections visible";
+  }
+
+  window.expandAllFiles = function () {
+    blocks().forEach((node) => {
+      if (node.style.display !== "none") node.open = true;
+    });
+  };
+
+  window.collapseAllFiles = function () {
+    blocks().forEach((node) => {
+      if (node.style.display !== "none") node.open = false;
+    });
+  };
+
+  function applyFilter() {
+    const query = (filterInput && filterInput.value ? filterInput.value : "").trim().toLowerCase();
+    let visible = 0;
+    blocks().forEach((node) => {
+      const file = node.getAttribute("data-file") || "";
+      const show = !query || file.includes(query);
+      node.style.display = show ? "" : "none";
+      if (show) visible += 1;
+    });
+    updateCount(visible);
+  }
+
+  if (filterInput) {
+    filterInput.addEventListener("input", applyFilter);
+  }
+  applyFilter();
+})();
+</script>
+
 </div></body></html>

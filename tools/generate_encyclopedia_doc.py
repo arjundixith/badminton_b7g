@@ -210,6 +210,10 @@ def section_card(title: str, body: str) -> str:
     return f"<div class='card'><h3>{html.escape(title)}</h3><p>{body}</p></div>"
 
 
+def slugify(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+
+
 commit = sh(["git", "rev-parse", "--short", "HEAD"])
 branch = sh(["git", "branch", "--show-current"])
 generated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -339,6 +343,78 @@ tr:nth-child(even) td { background: #f8fafc; }
   padding: 8px 10px;
   margin-top: 20px;
 }
+.appendix-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f1f5f9;
+}
+.appendix-controls input {
+  min-width: 220px;
+  flex: 1 1 260px;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  padding: 7px 8px;
+  font-size: 12px;
+}
+.appendix-controls button {
+  border: 1px solid #1d4ed8;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  padding: 7px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.appendix-controls button.secondary {
+  background: #fff;
+  color: #1d4ed8;
+}
+.appendix-link-grid {
+  columns: 2;
+  column-gap: 14px;
+  margin: 10px 0 14px;
+}
+.appendix-link-grid a {
+  display: inline-block;
+  margin: 2px 0;
+  color: #1d4ed8;
+  text-decoration: none;
+  font-size: 12px;
+}
+.file-block {
+  margin: 12px 0;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  background: #ffffff;
+}
+.file-block summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ecfeff;
+  font-weight: 600;
+  color: #0f172a;
+}
+.file-block summary::-webkit-details-marker {
+  display: none;
+}
+.file-block summary::before {
+  content: "+ ";
+  color: #2563eb;
+}
+.file-block[open] summary::before {
+  content: "- ";
+}
+.file-block-content {
+  padding: 8px 10px 2px;
+}
 .footer {
   margin-top: 26px;
   padding-top: 10px;
@@ -348,6 +424,11 @@ tr:nth-child(even) td { background: #f8fafc; }
 }
 @page {
   margin: 1in;
+}
+@media (max-width: 900px) {
+  .appendix-link-grid {
+    columns: 1;
+  }
 }
 </style>
 </head>
@@ -612,16 +693,40 @@ html_parts.append(
 
 html_parts.append("<h2 class='section' id='s8'>8. Code Encyclopedia Appendix (Line-by-Line)</h2>")
 html_parts.append(
-    "<p>This appendix presents every line for core project files with a concise line-level explanation to help new engineers learn code incrementally and systematically.</p>"
+    "<p>This appendix presents every line for core project files with concise explanations. Sections are collapsed by default to improve navigation.</p>"
+)
+html_parts.append(
+    "<div class='appendix-controls'>"
+    "<input id='fileFilter' type='text' placeholder='Filter files (example: viewer, backend/app, seed.py)'>"
+    "<button type='button' onclick='expandAllFiles()'>Expand All</button>"
+    "<button type='button' class='secondary' onclick='collapseAllFiles()'>Collapse All</button>"
+    "<span class='small' id='fileCount'></span>"
+    "</div>"
 )
 
+appendix_entries: list[tuple[Path, str, str, int]] = []
 for p in existing_files:
     rel = p.relative_to(ROOT).as_posix()
+    appendix_entries.append((p, rel, slugify(rel), len(p.read_text(encoding="utf-8", errors="ignore").splitlines())))
+
+html_parts.append("<div class='appendix-link-grid'>")
+for _, rel, slug, line_count in appendix_entries:
+    html_parts.append(
+        f"<a href='#{html.escape(slug)}'><code>{html.escape(rel)}</code> ({line_count})</a>"
+    )
+html_parts.append("</div>")
+
+for idx, (p, rel, slug, line_count) in enumerate(appendix_entries):
     text = p.read_text(encoding="utf-8", errors="ignore")
     ext = p.suffix.lower()
     lines = text.splitlines()
 
-    html_parts.append(f"<div class='file-title'><strong>{html.escape(rel)}</strong> &nbsp; | &nbsp; Lines: {len(lines)}</div>")
+    open_attr = " open" if idx < 2 else ""
+    html_parts.append(
+        f"<details class='file-block' id='{html.escape(slug)}' data-file='{html.escape(rel.lower())}'{open_attr}>"
+        f"<summary><code>{html.escape(rel)}</code> &nbsp; | &nbsp; Lines: {line_count}</summary>"
+        "<div class='file-block-content'>"
+    )
 
     symbols = extract_symbols(text, ext)
     if symbols:
@@ -642,11 +747,57 @@ for p in existing_files:
             "</tr>"
         )
     html_parts.append("</table>")
+    html_parts.append("</div></details>")
 
 html_parts.append(
     f"<div class='footer'>Generated from source at commit <code>{html.escape(commit)}</code> on branch <code>{html.escape(branch)}</code> ({html.escape(generated)}).</div>"
 )
 
+html_parts.append(
+    """
+<script>
+(function () {
+  const blocks = () => Array.from(document.querySelectorAll(".file-block"));
+  const counter = document.getElementById("fileCount");
+  const filterInput = document.getElementById("fileFilter");
+
+  function updateCount(visible) {
+    if (!counter) return;
+    counter.textContent = visible + " file sections visible";
+  }
+
+  window.expandAllFiles = function () {
+    blocks().forEach((node) => {
+      if (node.style.display !== "none") node.open = true;
+    });
+  };
+
+  window.collapseAllFiles = function () {
+    blocks().forEach((node) => {
+      if (node.style.display !== "none") node.open = false;
+    });
+  };
+
+  function applyFilter() {
+    const query = (filterInput && filterInput.value ? filterInput.value : "").trim().toLowerCase();
+    let visible = 0;
+    blocks().forEach((node) => {
+      const file = node.getAttribute("data-file") || "";
+      const show = !query || file.includes(query);
+      node.style.display = show ? "" : "none";
+      if (show) visible += 1;
+    });
+    updateCount(visible);
+  }
+
+  if (filterInput) {
+    filterInput.addEventListener("input", applyFilter);
+  }
+  applyFilter();
+})();
+</script>
+"""
+)
 html_parts.append("</div></body></html>")
 
 OUTPUT_HTML.write_text("\n".join(html_parts), encoding="utf-8")
