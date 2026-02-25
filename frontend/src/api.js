@@ -50,10 +50,6 @@ export function getViewerDashboard() {
     return request("/viewer/dashboard");
 }
 
-export function getStandings() {
-    return request("/viewer/standings");
-}
-
 export function getPostFinalsSummary() {
     return request("/viewer/post-finals");
 }
@@ -116,23 +112,6 @@ export function updateMatchStatus(matchId, status) {
             "Content-Type": "application/json",
         },
         body: JSON.stringify({ status }),
-    });
-}
-
-export function assignFinalReferee(name) {
-    const query = new URLSearchParams({ name: String(name || "") });
-    return request(`/finals/assign?${query.toString()}`, {
-        method: "POST",
-    });
-}
-
-export function updateFinalScore(score1, score2) {
-    return request("/finals/score", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ score1, score2 }),
     });
 }
 
