@@ -1,7 +1,6 @@
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from "react-router-dom";
 
 import Home from "./pages/Home";
-import PostFinals from "./pages/PostFinals";
 import Referee from "./pages/Referee";
 import Viewer from "./pages/Viewer";
 
@@ -57,11 +56,9 @@ export default function App() {
                     <Routes>
                         <Route path="/" element={<Home />} />
                         <Route path="/viewer" element={<Viewer />} />
-                        <Route path="/post-finals" element={<PostFinals />} />
                         <Route path="/referee" element={<Referee />} />
                         <Route path={ROUTE_PREFIX} element={<Home />} />
                         <Route path={`${ROUTE_PREFIX}/viewer`} element={<Viewer />} />
-                        <Route path={`${ROUTE_PREFIX}/post-finals`} element={<PostFinals />} />
                         <Route path={`${ROUTE_PREFIX}/referee`} element={<Referee />} />
 
                         <Route path="/ref" element={<Navigate to="/referee" replace />} />

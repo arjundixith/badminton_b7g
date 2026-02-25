@@ -50,10 +50,6 @@ export function getViewerDashboard() {
     return request("/viewer/dashboard");
 }
 
-export function getPostFinalsSummary() {
-    return request("/viewer/post-finals");
-}
-
 export function getMatches({ stage, status, tieId } = {}) {
     const query = new URLSearchParams();
 
